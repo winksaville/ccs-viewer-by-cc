@@ -20,6 +20,18 @@ pub enum Record {
 
     #[serde(rename = "last-prompt")]
     LastPrompt(LastPromptRecord),
+
+    #[serde(rename = "queue-operation")]
+    QueueOperation(QueueOperationRecord),
+
+    #[serde(rename = "system")]
+    System(Box<SystemRecord>),
+
+    #[serde(rename = "custom-title")]
+    CustomTitle(CustomTitleRecord),
+
+    #[serde(rename = "agent-name")]
+    AgentName(AgentNameRecord),
 }
 
 // ---------------------------------------------------------------------------
@@ -225,15 +237,71 @@ pub struct LastPromptRecord {
     pub session_id: String,
 }
 
+// ---------------------------------------------------------------------------
+// queue-operation
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueOperationRecord {
+    pub operation: String,
+    pub timestamp: String,
+    pub session_id: String,
+    pub content: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// system
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemRecord {
+    pub parent_uuid: String,
+    pub is_sidechain: bool,
+    pub subtype: String,
+    pub duration_ms: u64,
+    pub timestamp: String,
+    pub uuid: String,
+    pub is_meta: bool,
+    pub user_type: Option<String>,
+    pub entrypoint: Option<String>,
+    pub cwd: Option<String>,
+    pub session_id: Option<String>,
+    pub version: Option<String>,
+    pub git_branch: Option<String>,
+    pub slug: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// custom-title
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomTitleRecord {
+    pub custom_title: String,
+    pub session_id: String,
+}
+
+// ---------------------------------------------------------------------------
+// agent-name
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentNameRecord {
+    pub agent_name: String,
+    pub session_id: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs::File;
     use std::io::{BufRead, BufReader};
 
-    #[test]
-    fn deserialize_sample_jsonl() {
-        let path = "hwr.claude/31ba272b-f7c2-436b-a017-269e27a64d07.jsonl";
+    fn deserialize_file(path: &str) -> usize {
         let file = File::open(path).expect("sample JSONL file should exist");
         let reader = BufReader::new(file);
         let mut count = 0;
@@ -251,6 +319,22 @@ mod tests {
             );
             count += 1;
         }
-        assert_eq!(count, 22);
+        count
+    }
+
+    #[test]
+    fn deserialize_sample_31ba() {
+        assert_eq!(
+            deserialize_file("data/31ba272b-f7c2-436b-a017-269e27a64d07.jsonl"),
+            22
+        );
+    }
+
+    #[test]
+    fn deserialize_sample_997a() {
+        assert_eq!(
+            deserialize_file("data/997afb98-c6aa-4f4a-92ac-a841e040414b.jsonl"),
+            461
+        );
     }
 }

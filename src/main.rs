@@ -35,6 +35,10 @@ fn main() {
                     Record::Assistant(_) => "assistant",
                     Record::Progress(_) => "progress",
                     Record::LastPrompt(_) => "last-prompt",
+                    Record::QueueOperation(_) => "queue-operation",
+                    Record::System(_) => "system",
+                    Record::CustomTitle(_) => "custom-title",
+                    Record::AgentName(_) => "agent-name",
                 };
                 *counts.entry(label).or_insert(0) += 1;
             }

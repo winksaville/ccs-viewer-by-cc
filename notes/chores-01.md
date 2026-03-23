@@ -51,3 +51,25 @@ See [Chores format](README.md#chores-format)
 
   Verified: all 22 lines of sample JSONL deserialize successfully.
 
+## Add new record type variants (20260323 0.2.0)
+
+  Added 4 new variants to the `Record` enum discovered in the larger session
+  file `data/997afb98-...jsonl` (461 records):
+
+  - `QueueOperation` — slash command queue events (`enqueue`/`remove`)
+  - `System` — turn duration metadata (subtype `turn_duration`)
+  - `CustomTitle` — user-set session title
+  - `AgentName` — agent name assignment
+
+  Also updated the test to cover both data files (moved path from
+  `hwr.claude/` to `data/`) and added the new variant labels to `main.rs`.
+
+## Refactor SessionMetadata
+
+  Extract the 7 common metadata fields (`user_type`, `entrypoint`, `cwd`,
+  `session_id`, `version`, `git_branch`, `slug`) repeated across
+  `UserRecord`, `AssistantRecord`, `ProgressRecord`, and `SystemRecord`
+  into a shared `SessionMetadata` struct using `#[serde(flatten)]`.
+  Make individual fields required `String` instead of `Option<String>` —
+  they appear on every record in the data we have.
+
