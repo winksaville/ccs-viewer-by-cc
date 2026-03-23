@@ -21,6 +21,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 
  - Define serde structs for JSONL deserialization (0.1.0) [2]
  - Add queue-operation, system, custom-title, agent-name record types (0.2.0) [3]
+ - Support text blocks in user content arrays (0.3.0) [5]
 
 
 
@@ -30,3 +31,4 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [2]: chores-01.md#define-serde-structs-for-jsonl-deserialization
 [3]: chores-01.md#add-new-record-type-variants
 [4]: chores-01.md#refactor-sessionmetadata
+[5]: chores-01.md#support-text-blocks-in-user-content-arrays

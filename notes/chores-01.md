@@ -73,3 +73,13 @@ See [Chores format](README.md#chores-format)
   Make individual fields required `String` instead of `Option<String>` —
   they appear on every record in the data we have.
 
+## Support text blocks in user content arrays (20260323 0.3.0)
+
+  User message content arrays can contain both `tool_result` and `text` blocks.
+  Replaced `Vec<ToolResultBlock>` with `Vec<UserContentBlock>` where
+  `UserContentBlock` is a tagged enum (`#[serde(tag = "type")]`) handling both
+  block types. Removed the standalone `ToolResultBlock` struct.
+
+  Discovered in session file `data/092de687-...jsonl` (line 81) where a user
+  follow-up text was interleaved with tool results in the same content array.
+

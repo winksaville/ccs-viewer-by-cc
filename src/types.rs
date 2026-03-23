@@ -89,21 +89,27 @@ pub struct UserMessage {
 }
 
 /// User message content is either a plain text string (initial prompt)
-/// or an array of tool result blocks (tool responses).
+/// or an array of content blocks (tool results, text, etc.).
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum UserContent {
     Text(String),
-    Blocks(Vec<ToolResultBlock>),
+    Blocks(Vec<UserContentBlock>),
 }
 
+/// A block within a user message content array.
 #[derive(Debug, Deserialize)]
-pub struct ToolResultBlock {
-    pub tool_use_id: String,
-    #[serde(rename = "type")]
-    pub block_type: String,
-    pub content: ToolResultContent,
-    pub is_error: Option<bool>,
+#[serde(tag = "type")]
+pub enum UserContentBlock {
+    #[serde(rename = "tool_result")]
+    ToolResult {
+        tool_use_id: String,
+        content: ToolResultContent,
+        is_error: Option<bool>,
+    },
+
+    #[serde(rename = "text")]
+    Text { text: String },
 }
 
 /// Tool result content can be a plain string or a structured value.
@@ -335,6 +341,14 @@ mod tests {
         assert_eq!(
             deserialize_file("data/997afb98-c6aa-4f4a-92ac-a841e040414b.jsonl"),
             461
+        );
+    }
+
+    #[test]
+    fn deserialize_sample_092d() {
+        assert_eq!(
+            deserialize_file("data/092de687-cd0d-4583-b872-bc2908dff3ba.jsonl"),
+            223
         );
     }
 }
