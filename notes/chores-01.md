@@ -29,3 +29,25 @@ See [Chores format](README.md#chores-format)
 
   Take a look at the file and let me know what you think
 
+## Define serde structs for JSONL deserialization (20260323 0.1.0)
+
+  Created `src/types.rs` with serde structs to deserialize all 5 JSONL record
+  types from Claude Code session files:
+
+  - `Record` — top-level enum, internally tagged on `"type"` field
+  - `FileHistorySnapshotRecord` / `Snapshot` — file backup snapshots
+  - `UserRecord` / `UserMessage` / `UserContent` — user prompts + tool results
+  - `AssistantRecord` / `AssistantMessage` / `AssistantContentBlock` — model responses
+  - `ProgressRecord` / `ProgressData` — hook execution events
+  - `LastPromptRecord` — session end marker
+  - `Usage` / `CacheCreation` — API usage metadata
+
+  Key design decisions:
+  - Internally tagged enum (`#[serde(tag = "type")]`) for `Record` and content blocks
+  - `#[serde(untagged)]` for `UserContent` (string vs tool_result array)
+  - `serde_json::Value` for polymorphic fields (`toolUseResult`, `tool_use.input`)
+  - `Box<T>` on large enum variants per clippy `large_enum_variant`
+  - camelCase rename on Claude Code wrapper structs; snake_case (default) on API structs
+
+  Verified: all 22 lines of sample JSONL deserialize successfully.
+
