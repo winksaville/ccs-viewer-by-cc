@@ -83,3 +83,19 @@ See [Chores format](README.md#chores-format)
   Discovered in session file `data/092de687-...jsonl` (line 81) where a user
   follow-up text was interleaved with tool results in the same content array.
 
+## Make SystemRecord subtype-specific fields optional (20260323 0.4.0)
+
+  `SystemRecord` has multiple subtypes (`turn_duration`, `local_command`) with
+  different fields. Made `duration_ms` optional (only on `turn_duration`) and
+  added optional `content` and `level` fields (only on `local_command`).
+
+  Discovered in `data/86fb7a89-...jsonl` (2222 records) where `local_command`
+  system records lacked `durationMs`.
+
+## Add clap CLI
+
+  Switch from manual arg parsing to `clap`. Gets us `-V`/`--version` for
+  free (from Cargo.toml), proper `--help`, and multi-file argument support.
+  Also add a test that asserts all 9 `Record` variants appear at least once
+  across test data files, so trimming a file doesn't silently drop coverage.
+

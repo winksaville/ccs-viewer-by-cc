@@ -266,10 +266,15 @@ pub struct SystemRecord {
     pub parent_uuid: String,
     pub is_sidechain: bool,
     pub subtype: String,
-    pub duration_ms: u64,
     pub timestamp: String,
     pub uuid: String,
     pub is_meta: bool,
+    // subtype: turn_duration
+    pub duration_ms: Option<u64>,
+    // subtype: local_command
+    pub content: Option<String>,
+    pub level: Option<String>,
+    // common metadata
     pub user_type: Option<String>,
     pub entrypoint: Option<String>,
     pub cwd: Option<String>,
@@ -349,6 +354,14 @@ mod tests {
         assert_eq!(
             deserialize_file("data/092de687-cd0d-4583-b872-bc2908dff3ba.jsonl"),
             223
+        );
+    }
+
+    #[test]
+    fn deserialize_sample_86fb() {
+        assert_eq!(
+            deserialize_file("data/86fb7a89-abfa-4e84-b862-5983e93c0b3b.jsonl"),
+            301
         );
     }
 }
