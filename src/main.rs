@@ -17,7 +17,8 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let mut has_errors = false;
+    let mut total_records: usize = 0;
+    let mut total_errors: usize = 0;
 
     for path in &cli.files {
         let file = File::open(path).unwrap_or_else(|e| {
@@ -47,13 +48,14 @@ fn main() {
             }
         }
 
-        let total: usize = counts.values().sum();
-        println!("Deserialized {total} records from {}", path.display());
+        let file_total: usize = counts.values().sum();
+        total_records += file_total;
+        total_errors += errors.len();
+        println!("Deserialized {file_total} records from {}", path.display());
         for (label, count) in &counts {
             println!("  {label}: {count}");
         }
         if !errors.is_empty() {
-            has_errors = true;
             eprintln!("\n{} error(s):", errors.len());
             for (line_num, msg) in &errors {
                 eprintln!("  line {line_num}: {msg}");
@@ -61,7 +63,11 @@ fn main() {
         }
     }
 
-    if has_errors {
+    let file_count = cli.files.len();
+    if total_errors > 0 {
+        eprintln!("\nSummary: {file_count} files, {total_records} records, {total_errors} errors");
         std::process::exit(1);
+    } else {
+        println!("\nSummary: {file_count} files, {total_records} records, 0 errors");
     }
 }

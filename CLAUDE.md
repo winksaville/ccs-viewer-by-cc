@@ -76,10 +76,12 @@ a version suffix:
 <type>: <short description> (<version>)
 ```
 
-- **Title**: target ~50 chars, short summary of *what* changed.
+- **Title**: max 52 chars, short summary of *what* changed.
   Include the version. Common types: `feat`, `fix`, `refactor`,
   `test`, `docs`, `chore`.
-- **Body**: expand on *what* if needed, plus short *why* and *how*.
+- **Body**: max 72 chars per line. Start with a short explanatory
+  sentence or paragraph, then a blank line, then a bulleted list
+  of changes. Keep items as readable sentences.
 - Examples:
   - `feat: add fix-ochid subcommand (0.22.0)`
   - `fix: fix-ochid prefix bug (0.22.1)`

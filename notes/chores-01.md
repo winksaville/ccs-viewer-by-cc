@@ -102,3 +102,36 @@ See [Chores format](README.md#chores-format)
   variant label strings. Added `all_variants_covered` test that asserts every
   `Record` variant appears at least once across all test data files.
 
+## Add all-optional-fields-seen test (20260323 0.6.0)
+
+  Added `all_optional_fields_seen` test that verifies every `Option` field
+  in every struct is `Some` at least once across test data. Each struct with
+  Option fields has an `optional_fields()` method listing camelCase JSON names
+  right next to the struct definition. Nested fields use dot notation
+  (e.g. `"message.usage.speed"`), array filtering uses bracket notation
+  (e.g. `"message.content[tool_use].caller"`).
+
+  Reordered struct fields: required fields first, Option fields grouped at
+  the bottom with a separator comment.
+
+  Found and fixed a real bug: `sourceToolAssistantUUID` was never being
+  deserialized because `rename_all = "camelCase"` produced
+  `sourceToolAssistantUuid` but the JSON key uses all-caps `UUID`.
+  Added explicit `#[serde(rename = "sourceToolAssistantUUID")]`.
+
+  Added `deny_unknown_fields` to all structs so serde rejects any JSON key
+  not mapped to a struct field. This surfaced several missing fields:
+  - `UserRecord.is_meta` (Option<bool>)
+  - `AssistantRecord.is_api_error_message` (Option<bool>)
+  - `AssistantMessage.container` (Option<Value>) — always null
+  - `AssistantMessage.context_management` (Option<Value>) — always null
+  - `ProgressData.message` (Option<Value>)
+  - `ProgressData.prompt` (Option<Value>)
+  - `ProgressData.agent_id` (Option<String>)
+
+  Grabbed a line from `.claude/` with `stop_sequence` set and appended it to
+  the `092de687` test file so that field is now tested too.
+
+  `container` and `context_management` are excluded from the optional_fields
+  test list — always null in practice.
+

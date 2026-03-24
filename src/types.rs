@@ -1,3 +1,37 @@
+//! Serde types for Claude Code session JSONL files.
+//!
+//! Each line of a session file is a JSON object with a `"type"` field that
+//! determines its shape. The [`Record`] enum uses serde's internally tagged
+//! representation (`#[serde(tag = "type")]`) to dispatch to the correct
+//! variant struct.
+//!
+//! # Key patterns
+//!
+//! **Label strings** — The `RECORD_LABELS` const is the single source of
+//! truth for type name strings (e.g. `"assistant"`, `"system"`).
+//! [`Record::label()`] indexes into it; [`Record::all_labels()`] returns
+//! the full slice. This avoids duplicating strings between the two methods.
+//!
+//! **Struct field ordering** — Each struct lists required fields first,
+//! then `Option` fields below a separator comment. This makes it visually
+//! obvious which fields need entries in the `optional_fields()` list.
+//!
+//! **`deny_unknown_fields`** — Every struct has `#[serde(deny_unknown_fields)]`
+//! so that any JSON key not mapped to a Rust field causes a deserialization
+//! error. This ensures we know immediately when Claude Code adds new fields.
+//!
+//! **`optional_fields()`** — Structs with `Option` fields have a companion
+//! `optional_fields()` method listing the camelCase (or snake_case) JSON
+//! names of those fields. The `all_optional_fields_seen` test uses these
+//! lists to verify every `Option` field is `Some` at least once in test
+//! data. Nested fields use dot notation (`"message.usage.speed"`) and
+//! array filtering uses brackets (`"message.content[tool_use].caller"`).
+//!
+//! **Warning**: The `optional_fields()` lists are static — adding an
+//! `Option` field to a struct without updating the list means that field
+//! silently goes untested. The separator comment in each struct serves as
+//! a reminder.
+
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -34,34 +68,49 @@ pub enum Record {
     AgentName(AgentNameRecord),
 }
 
+/// Single source of truth for record type label strings.
+const RECORD_LABELS: &[&str] = &[
+    "file-history-snapshot",
+    "user",
+    "assistant",
+    "progress",
+    "last-prompt",
+    "queue-operation",
+    "system",
+    "custom-title",
+    "agent-name",
+];
+
 impl Record {
     /// Returns the type label string for this record variant.
     pub fn label(&self) -> &'static str {
-        match self {
-            Record::FileHistorySnapshot(_) => "file-history-snapshot",
-            Record::User(_) => "user",
-            Record::Assistant(_) => "assistant",
-            Record::Progress(_) => "progress",
-            Record::LastPrompt(_) => "last-prompt",
-            Record::QueueOperation(_) => "queue-operation",
-            Record::System(_) => "system",
-            Record::CustomTitle(_) => "custom-title",
-            Record::AgentName(_) => "agent-name",
-        }
+        RECORD_LABELS[match self {
+            Record::FileHistorySnapshot(_) => 0,
+            Record::User(_) => 1,
+            Record::Assistant(_) => 2,
+            Record::Progress(_) => 3,
+            Record::LastPrompt(_) => 4,
+            Record::QueueOperation(_) => 5,
+            Record::System(_) => 6,
+            Record::CustomTitle(_) => 7,
+            Record::AgentName(_) => 8,
+        }]
     }
 
     /// Returns the full list of known record type labels.
     pub fn all_labels() -> &'static [&'static str] {
-        &[
-            "file-history-snapshot",
-            "user",
-            "assistant",
-            "progress",
-            "last-prompt",
-            "queue-operation",
-            "system",
-            "custom-title",
-            "agent-name",
+        RECORD_LABELS
+    }
+
+    /// Returns the optional fields list for each record type that has them.
+    /// Used by tests to verify all Option fields are exercised.
+    pub fn optional_fields_by_type() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![
+            ("user", UserRecord::optional_fields()),
+            ("assistant", AssistantRecord::optional_fields()),
+            ("progress", ProgressRecord::optional_fields()),
+            ("queue-operation", QueueOperationRecord::optional_fields()),
+            ("system", SystemRecord::optional_fields()),
         ]
     }
 }
@@ -71,7 +120,7 @@ impl Record {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct FileHistorySnapshotRecord {
     pub message_id: String,
     pub snapshot: Snapshot,
@@ -79,7 +128,7 @@ pub struct FileHistorySnapshotRecord {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Snapshot {
     pub message_id: String,
     pub tracked_file_backups: Value,
@@ -91,20 +140,21 @@ pub struct Snapshot {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UserRecord {
-    pub parent_uuid: Option<String>,
     pub is_sidechain: bool,
-    pub prompt_id: Option<String>,
     pub message: UserMessage,
     pub uuid: String,
     pub timestamp: String,
-    // Present only on initial user prompt
+    // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub is_meta: Option<bool>,
+    // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub parent_uuid: Option<String>,
+    pub prompt_id: Option<String>,
     pub permission_mode: Option<String>,
-    // Present on tool result records
     pub tool_use_result: Option<Value>,
+    #[serde(rename = "sourceToolAssistantUUID")]
     pub source_tool_assistant_uuid: Option<String>,
-    // Common metadata
     pub user_type: Option<String>,
     pub entrypoint: Option<String>,
     pub cwd: Option<String>,
@@ -114,7 +164,32 @@ pub struct UserRecord {
     pub slug: Option<String>,
 }
 
+// WARNING: When adding an Option field above, add its camelCase JSON name here.
+// This list cannot detect missing entries — unlisted fields silently go untested.
+impl UserRecord {
+    pub fn optional_fields() -> &'static [&'static str] {
+        &[
+            "parentUuid",
+            "promptId",
+            "permissionMode",
+            "toolUseResult",
+            "isMeta",
+            "sourceToolAssistantUUID",
+            "userType",
+            "entrypoint",
+            "cwd",
+            "sessionId",
+            "version",
+            "gitBranch",
+            "slug",
+            // UserContentBlock::ToolResult
+            "message.content[tool_result].is_error",
+        ]
+    }
+}
+
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UserMessage {
     pub role: String,
     pub content: UserContent,
@@ -157,15 +232,16 @@ pub enum ToolResultContent {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssistantRecord {
     pub parent_uuid: String,
     pub is_sidechain: bool,
     pub message: AssistantMessage,
-    pub request_id: Option<String>,
     pub uuid: String,
     pub timestamp: String,
-    // Common metadata
+    // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub is_api_error_message: Option<bool>,
+    pub request_id: Option<String>,
     pub user_type: Option<String>,
     pub entrypoint: Option<String>,
     pub cwd: Option<String>,
@@ -175,7 +251,43 @@ pub struct AssistantRecord {
     pub slug: Option<String>,
 }
 
+// WARNING: When adding an Option field above (or in nested structs below),
+// add its camelCase JSON name here. Nested fields use dot notation.
+// This list cannot detect missing entries — unlisted fields silently go untested.
+impl AssistantRecord {
+    pub fn optional_fields() -> &'static [&'static str] {
+        &[
+            "isApiErrorMessage",
+            "requestId",
+            "userType",
+            "entrypoint",
+            "cwd",
+            "sessionId",
+            "version",
+            "gitBranch",
+            "slug",
+            // AssistantMessage (snake_case — no rename_all on this struct)
+            "message.stop_reason",
+            "message.stop_sequence",
+            // Usage (snake_case — no rename_all on this struct)
+            "message.usage.cache_creation_input_tokens",
+            "message.usage.cache_read_input_tokens",
+            "message.usage.cache_creation",
+            "message.usage.service_tier",
+            "message.usage.inference_geo",
+            "message.usage.server_tool_use",
+            "message.usage.iterations",
+            "message.usage.speed",
+            // "message.container" — always null in practice
+            // "message.context_management" — always null in practice
+            // AssistantContentBlock::ToolUse
+            "message.content[tool_use].caller",
+        ]
+    }
+}
+
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AssistantMessage {
     pub model: String,
     pub id: String,
@@ -183,9 +295,12 @@ pub struct AssistantMessage {
     pub message_type: String,
     pub role: String,
     pub content: Vec<AssistantContentBlock>,
+    pub usage: Usage,
+    // --- Option fields (listed in AssistantRecord::optional_fields) ---
     pub stop_reason: Option<String>,
     pub stop_sequence: Option<String>,
-    pub usage: Usage,
+    pub container: Option<Value>,
+    pub context_management: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -202,14 +317,17 @@ pub enum AssistantContentBlock {
         id: String,
         name: String,
         input: Value,
+        // --- Option field (listed in AssistantRecord::optional_fields) ---
         caller: Option<Value>,
     },
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Usage {
     pub input_tokens: u64,
     pub output_tokens: u64,
+    // --- Option fields (listed in AssistantRecord::optional_fields) ---
     pub cache_creation_input_tokens: Option<u64>,
     pub cache_read_input_tokens: Option<u64>,
     pub cache_creation: Option<CacheCreation>,
@@ -221,6 +339,7 @@ pub struct Usage {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CacheCreation {
     #[serde(rename = "ephemeral_5m_input_tokens")]
     pub ephemeral_5m_input_tokens: u64,
@@ -233,18 +352,18 @@ pub struct CacheCreation {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ProgressRecord {
     pub parent_uuid: String,
     pub is_sidechain: bool,
     pub data: ProgressData,
+    pub timestamp: String,
+    pub uuid: String,
+    // --- Option fields (add camelCase JSON name to optional_fields below) ---
     #[serde(rename = "parentToolUseID")]
     pub parent_tool_use_id: Option<String>,
     #[serde(rename = "toolUseID")]
     pub tool_use_id: Option<String>,
-    pub timestamp: String,
-    pub uuid: String,
-    // Common metadata
     pub user_type: Option<String>,
     pub entrypoint: Option<String>,
     pub cwd: Option<String>,
@@ -254,14 +373,44 @@ pub struct ProgressRecord {
     pub slug: Option<String>,
 }
 
+// WARNING: When adding an Option field above (or in ProgressData below),
+// add its camelCase JSON name here. Nested fields use dot notation.
+// This list cannot detect missing entries — unlisted fields silently go untested.
+impl ProgressRecord {
+    pub fn optional_fields() -> &'static [&'static str] {
+        &[
+            "parentToolUseID",
+            "toolUseID",
+            "userType",
+            "entrypoint",
+            "cwd",
+            "sessionId",
+            "version",
+            "gitBranch",
+            "slug",
+            // ProgressData
+            "data.hookEvent",
+            "data.hookName",
+            "data.command",
+            "data.message",
+            "data.prompt",
+            "data.agentId",
+        ]
+    }
+}
+
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ProgressData {
     #[serde(rename = "type")]
     pub data_type: String,
+    // --- Option fields (listed in ProgressRecord::optional_fields) ---
     pub hook_event: Option<String>,
     pub hook_name: Option<String>,
     pub command: Option<String>,
+    pub message: Option<Value>,
+    pub prompt: Option<Value>,
+    pub agent_id: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +418,7 @@ pub struct ProgressData {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct LastPromptRecord {
     pub last_prompt: String,
     pub session_id: String,
@@ -280,12 +429,21 @@ pub struct LastPromptRecord {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct QueueOperationRecord {
     pub operation: String,
     pub timestamp: String,
     pub session_id: String,
+    // --- Option fields (add camelCase JSON name to optional_fields below) ---
     pub content: Option<String>,
+}
+
+// WARNING: When adding an Option field above, add its camelCase JSON name here.
+// This list cannot detect missing entries — unlisted fields silently go untested.
+impl QueueOperationRecord {
+    pub fn optional_fields() -> &'static [&'static str] {
+        &["content"]
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +451,7 @@ pub struct QueueOperationRecord {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SystemRecord {
     pub parent_uuid: String,
     pub is_sidechain: bool,
@@ -301,12 +459,10 @@ pub struct SystemRecord {
     pub timestamp: String,
     pub uuid: String,
     pub is_meta: bool,
-    // subtype: turn_duration
+    // --- Option fields (add camelCase JSON name to optional_fields below) ---
     pub duration_ms: Option<u64>,
-    // subtype: local_command
     pub content: Option<String>,
     pub level: Option<String>,
-    // common metadata
     pub user_type: Option<String>,
     pub entrypoint: Option<String>,
     pub cwd: Option<String>,
@@ -316,12 +472,31 @@ pub struct SystemRecord {
     pub slug: Option<String>,
 }
 
+// WARNING: When adding an Option field above, add its camelCase JSON name here.
+// This list cannot detect missing entries — unlisted fields silently go untested.
+impl SystemRecord {
+    pub fn optional_fields() -> &'static [&'static str] {
+        &[
+            "durationMs",
+            "content",
+            "level",
+            "userType",
+            "entrypoint",
+            "cwd",
+            "sessionId",
+            "version",
+            "gitBranch",
+            "slug",
+        ]
+    }
+}
+
 // ---------------------------------------------------------------------------
 // custom-title
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CustomTitleRecord {
     pub custom_title: String,
     pub session_id: String,
@@ -332,7 +507,7 @@ pub struct CustomTitleRecord {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AgentNameRecord {
     pub agent_name: String,
     pub session_id: String,
@@ -400,7 +575,7 @@ mod tests {
     fn deserialize_sample_092d() {
         assert_eq!(
             deserialize_file("data/092de687-cd0d-4583-b872-bc2908dff3ba.jsonl"),
-            223
+            224
         );
     }
 
@@ -409,6 +584,89 @@ mod tests {
         assert_eq!(
             deserialize_file("data/86fb7a89-abfa-4e84-b862-5983e93c0b3b.jsonl"),
             301
+        );
+    }
+
+    /// Look up a dotted path in a serde_json::Value.
+    /// Supports segments like "message", "usage", or array filtering
+    /// like "content[tool_use]" (find element in array where type == "tool_use").
+    fn value_at_path<'a>(val: &'a Value, path: &str) -> Option<&'a Value> {
+        let mut current = val;
+        for segment in path.split('.') {
+            if let Some(idx) = segment.find('[') {
+                let key = &segment[..idx];
+                let filter_type = &segment[idx + 1..segment.len() - 1];
+                let arr = current.get(key)?.as_array()?;
+                current = arr
+                    .iter()
+                    .find(|el| el.get("type").and_then(|t| t.as_str()) == Some(filter_type))?;
+            } else {
+                current = current.get(segment)?;
+            }
+        }
+        if current.is_null() {
+            None
+        } else {
+            Some(current)
+        }
+    }
+
+    /// Verify every Option field in every struct has at least one non-null
+    /// occurrence across test data. This catches Option fields that are defined
+    /// in a struct but never actually exercised by any test file.
+    ///
+    /// WARNING: This test uses a static list of Option fields per record type
+    /// (see each struct's `optional_fields()` method). It cannot catch Option
+    /// fields that are missing from those lists — those fields will silently
+    /// remain untested (always None). When adding a new Option field to a
+    /// struct, you must also add its camelCase JSON name to the corresponding
+    /// `optional_fields()` list.
+    #[test]
+    fn all_optional_fields_seen() {
+        let field_map = Record::optional_fields_by_type();
+        let mut seen: HashSet<(String, String)> = HashSet::new();
+
+        for path in TEST_FILES {
+            let file = File::open(path).expect("test file should exist");
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                let line = line.unwrap();
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let val: Value = match serde_json::from_str(&line) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+                let record_type = match val.get("type").and_then(|t| t.as_str()) {
+                    Some(t) => t,
+                    None => continue,
+                };
+                for &(rtype, fields) in &field_map {
+                    if rtype != record_type {
+                        continue;
+                    }
+                    for field in fields {
+                        if value_at_path(&val, field).is_some() {
+                            seen.insert((record_type.to_string(), field.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut never_seen = Vec::new();
+        for &(rtype, fields) in &field_map {
+            for field in fields {
+                if !seen.contains(&(rtype.to_string(), field.to_string())) {
+                    never_seen.push(format!("{rtype}.{field}"));
+                }
+            }
+        }
+        never_seen.sort();
+        assert!(
+            never_seen.is_empty(),
+            "Option fields never seen as Some in test data: {never_seen:?}"
         );
     }
 
