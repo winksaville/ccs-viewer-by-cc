@@ -26,6 +26,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Add clap CLI with -V, multi-file args, and all-variants-covered test (0.5.0) [7]
  - Add all-optional-fields-seen test, deny_unknown_fields, fix missing fields (0.6.0) [8]
  - Add all-optional-fields-seen test, reorder struct fields, fix sourceToolAssistantUUID rename (0.6.0) [8]
+ - Compact single-line output with grouped error summary (0.7.0) [9]
 
 
 
@@ -39,3 +40,4 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [6]: chores-01.md#make-systemrecord-subtype-specific-fields-optional
 [7]: chores-01.md#add-clap-cli
 [8]: chores-01.md#add-all-optional-fields-seen-test
+[9]: chores-01.md#compact-single-line-output-with-grouped-errors

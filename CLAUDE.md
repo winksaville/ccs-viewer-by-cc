@@ -136,31 +136,47 @@ Use `vc-x1 chid -R .,.claude -L` to get both 12-character changeIDs
 
 ## Session End Workflows
 
-When the user asks to "commit both repos" or says they're done, commit
-both repos. Use the **same title** for both commits so they're easy to
-correlate. The body can differ: the app repo body should summarize code
-changes; the bot session repo body should note what was done in the
-session.
+When the user asks to commit, follow this sequence:
 
+1. **Get changeIDs first** — run `vc-x1 chid -R .,.claude -L` before
+   presenting commit commands so ochid trailers are filled in (DRY).
+2. **Present both commits** for user review with ochids already
+   populated. Use the **same title** for both commits. The body can
+   differ: app repo summarizes code changes; bot session notes what
+   was done.
+3. **Wait for user approval** before executing anything.
+4. **Commit both repos** after approval.
+5. **Advance bookmarks** on both repos (`jj bookmark set <bookmark>
+   -r @- -R .` / `-R .claude`).
+6. **Only push if the user asked to push.** Do **not** push `.claude`
+   — `finalize` handles that.
+
+# Step 1: get changeIDs
 ```
-jj commit -m "shared title" -m "app body" -R .
-jj commit -m "shared title" -m "session body" -R .claude
+vc-x1 chid -R .,.claude -L
 ```
 
-After both commits, **pause and ask for user approval** before
-proceeding to bookmark/push/finalize.
+# Step 2: prepare commit and present to user
+```
+jj commit -m "shared title" -m "app body\n\nochid: /.claude/<claude-chid>" -R .
+jj commit -m "shared title" -m "session body\n\nochid: /<app-chid>" -R .claude
+```
 
-When the user also asks to push, advance the current bookmark on both
-repos, then push the app repo. Do **not** push `.claude` here —
-`finalize` handles that push after squashing trailing writes.
+# Step 3: Ask for approval to commit
 
-Replace `<bookmark>` with the active bookmark (e.g. `main`,
-`dev-0.14.0`).
-
+# Step 4: Advance bookmarks
 ```
 jj bookmark set <bookmark> -r @- -R .
 jj bookmark set <bookmark> -r @- -R .claude
+```
+
+# Step 5: Ask for approval to push and finalize if requested see [Finalize the .claude repo](CLAUDE.md#Finalize-the--claude-repo)
+
+Manually push the app repo, `-R .`, do **not** push `.claude` use
+`finalize` instead, which handles squashing @ to @- and pushes .claude
+```
 jj git push --bookmark <bookmark> -R .
+vc-x1 finalize --repo .claude --bookmark <bookmark> --delay 10 --detach --push
 ```
 
 ### Late changes after push

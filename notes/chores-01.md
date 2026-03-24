@@ -135,3 +135,26 @@ See [Chores format](README.md#chores-format)
   `container` and `context_management` are excluded from the optional_fields
   test list — always null in practice.
 
+## Compact single-line output with grouped errors (20260324 0.7.0)
+
+  Reformatted CLI output so each file produces a single summary line:
+
+  ```
+  filename.jsonl: errors: 0, records: 220, assistant: 65, user: 50, ...
+  ```
+
+  Record types are alphabetically sorted (BTreeMap). After all files,
+  a summary line shows totals. If there are errors, they're grouped by
+  serde error message + record type and printed as:
+
+  ```
+  3x unknown field "foo" in assistant (filename.jsonl:142 in 2 files)
+  ```
+
+  Each error line includes: occurrence count, full serde message, record
+  type (peeked from raw JSON), one file:line example for grabbing test
+  data, and the number of files affected.
+
+  No more need to go to the file to identify the record type — it's
+  right in the error line.
+
