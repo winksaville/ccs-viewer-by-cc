@@ -3,6 +3,62 @@
 This directory contains various notes and documentation related to the project.
 Each file is organized by topic for easy reference.
 
+## CLI Usage
+
+```
+ccs-viewer [OPTIONS] <PATTERNS>...
+```
+
+By default, only the summary line is printed. Use flags for more detail.
+
+### Options
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--list` | `-l` | Show per-file summary lines |
+| `--errors` | `-e` | Show grouped error details after summary |
+| `--recursive` | `-r` | Treat positional args as directories, search recursively |
+| `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`) |
+| `--version` | `-V` | Print version |
+| `--help` | `-h` | Print help |
+
+### Positional arguments
+
+Without `-r`: file glob patterns expanded by the program.
+With `-r`: directory paths (or directory globs) to search recursively.
+
+### Examples
+
+```
+# Summary only (default)
+ccs-viewer "data/*.jsonl"
+
+# Per-file list + summary
+ccs-viewer -l "data/*.jsonl"
+
+# Summary + error details
+ccs-viewer -e "data/*.jsonl"
+
+# Recursive search in a directory
+ccs-viewer -r .claude
+
+# Recursive with custom file patterns
+ccs-viewer -r --glob "*.jsonl" --glob "*.json" .claude
+
+# Multiple directories
+ccs-viewer -r .claude ../vc-x1/.claude
+
+# Directory glob
+ccs-viewer -r "../*/.claude"
+
+# All flags
+ccs-viewer -r -l -e .claude
+```
+
+### Exit code
+
+Exits 0 on success, 1 if any deserialization errors occurred.
+
 By default there are chores-*.md and todo.md. Chores are general notes
 about tasks and todo.md contains short term tasks and their status.
 

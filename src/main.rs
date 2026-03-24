@@ -10,9 +10,142 @@ use ccs_viewer::types::Record;
 #[derive(Parser)]
 #[command(version, about = "Claude Code session JSONL viewer")]
 struct Cli {
-    /// Session JSONL files to process
+    /// File or directory glob patterns to process
     #[arg(required = true)]
-    files: Vec<PathBuf>,
+    patterns: Vec<String>,
+
+    /// Show per-file summary lines
+    #[arg(short, long)]
+    list: bool,
+
+    /// Show grouped error details
+    #[arg(short, long)]
+    errors: bool,
+
+    /// Recursively search directories for matching files
+    #[arg(short, long)]
+    recursive: bool,
+
+    /// File glob pattern for recursive mode (repeatable, default: *.jsonl)
+    #[arg(long = "glob")]
+    globs: Vec<String>,
+}
+
+/// Resolve CLI patterns into a list of file paths.
+fn resolve_files(cli: &Cli) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+
+    if cli.recursive {
+        let file_globs: Vec<&str> = if cli.globs.is_empty() {
+            vec!["*.jsonl"]
+        } else {
+            cli.globs.iter().map(|s| s.as_str()).collect()
+        };
+
+        // Expand positional patterns as directory globs.
+        for pattern in &cli.patterns {
+            let dirs: Vec<PathBuf> = match glob::glob(pattern) {
+                Ok(paths) => paths
+                    .filter_map(|p| p.ok())
+                    .filter(|p| p.is_dir())
+                    .collect(),
+                Err(e) => {
+                    eprintln!("Bad pattern {pattern:?}: {e}");
+                    std::process::exit(1);
+                }
+            };
+            if dirs.is_empty() {
+                eprintln!("No directories match {pattern:?}");
+                std::process::exit(1);
+            }
+            for dir in &dirs {
+                for fg in &file_globs {
+                    let full = format!("{}/**/{fg}", dir.display());
+                    match glob::glob(&full) {
+                        Ok(paths) => {
+                            for entry in paths.flatten() {
+                                if entry.is_file() {
+                                    files.push(entry);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Bad glob {full:?}: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        let file_globs: Vec<&str> = if cli.globs.is_empty() {
+            vec!["*.jsonl"]
+        } else {
+            cli.globs.iter().map(|s| s.as_str()).collect()
+        };
+
+        for pattern in &cli.patterns {
+            // Check if pattern is a literal directory path first.
+            let path = PathBuf::from(pattern);
+            if path.is_dir() {
+                // Directory: expand file globs inside it (non-recursive).
+                for fg in &file_globs {
+                    let full = format!("{}/{fg}", path.display());
+                    match glob::glob(&full) {
+                        Ok(paths) => {
+                            for entry in paths.flatten() {
+                                if entry.is_file() {
+                                    files.push(entry);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Bad glob {full:?}: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            } else {
+                // Treat as file glob pattern.
+                match glob::glob(pattern) {
+                    Ok(paths) => {
+                        let mut matched = Vec::new();
+                        for entry in paths.flatten() {
+                            if entry.is_file() {
+                                matched.push(entry);
+                            } else if entry.is_dir() {
+                                // Glob matched a directory: expand file
+                                // globs inside it (non-recursive).
+                                for fg in &file_globs {
+                                    let full = format!("{}/{fg}", entry.display());
+                                    if let Ok(inner) = glob::glob(&full) {
+                                        for f in inner.flatten() {
+                                            if f.is_file() {
+                                                matched.push(f);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if matched.is_empty() {
+                            eprintln!("No files match {pattern:?}");
+                            std::process::exit(1);
+                        }
+                        files.extend(matched);
+                    }
+                    Err(e) => {
+                        eprintln!("Bad pattern {pattern:?}: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    }
+
+    files.sort();
+    files.dedup();
+    files
 }
 
 /// Key for grouping errors: the serde error message + record type.
@@ -36,11 +169,18 @@ struct ErrorGroup {
 
 fn main() {
     let cli = Cli::parse();
+    let files = resolve_files(&cli);
+
+    if files.is_empty() {
+        eprintln!("No files to process");
+        std::process::exit(1);
+    }
+
     let mut total_records: usize = 0;
     let mut total_errors: usize = 0;
     let mut error_groups: HashMap<ErrorKey, ErrorGroup> = HashMap::new();
 
-    for (file_idx, path) in cli.files.iter().enumerate() {
+    for (file_idx, path) in files.iter().enumerate() {
         let file = File::open(path).unwrap_or_else(|e| {
             eprintln!("Error opening {}: {e}", path.display());
             std::process::exit(1);
@@ -68,7 +208,6 @@ fn main() {
                 }
                 Err(e) => {
                     file_errors += 1;
-                    // Peek at "type" field for error context.
                     let record_type = serde_json::from_str::<serde_json::Value>(&line)
                         .ok()
                         .and_then(|v| v.get("type")?.as_str().map(String::from))
@@ -98,23 +237,25 @@ fn main() {
         total_records += file_total;
         total_errors += file_errors;
 
-        // Single summary line per file.
-        let mut parts = vec![
-            format!("errors: {file_errors}"),
-            format!("records: {file_total}"),
-        ];
-        for (label, count) in &counts {
-            parts.push(format!("{label}: {count}"));
+        if cli.list {
+            let mut parts = vec![
+                format!("errors: {file_errors}"),
+                format!("records: {file_total}"),
+            ];
+            for (label, count) in &counts {
+                parts.push(format!("{label}: {count}"));
+            }
+            println!("{filename}: {}", parts.join(", "));
         }
-        println!("{filename}: {}", parts.join(", "));
     }
 
-    // Summary line.
-    let file_count = cli.files.len();
-    println!("\nSummary: {file_count} file(s), {total_records} records, {total_errors} errors");
+    let file_count = files.len();
+    println!(
+        "{}Summary: {file_count} file(s), {total_records} records, {total_errors} errors",
+        if cli.list { "\n" } else { "" }
+    );
 
-    // Error detail section.
-    if !error_groups.is_empty() {
+    if cli.errors && !error_groups.is_empty() {
         println!("\nErrors:");
         let mut groups: Vec<_> = error_groups.into_iter().collect();
         groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
@@ -129,6 +270,9 @@ fn main() {
                 group.file_count,
             );
         }
+    }
+
+    if total_errors > 0 {
         std::process::exit(1);
     }
 }

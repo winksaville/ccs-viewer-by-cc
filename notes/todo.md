@@ -11,6 +11,7 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
+ - Add support for agent session files (agent-*.jsonl) [12]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
 
@@ -28,8 +29,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Add all-optional-fields-seen test, reorder struct fields, fix sourceToolAssistantUUID rename (0.6.0) [8]
  - Compact single-line output with grouped error summary (0.7.0) [9]
  - Add unknown fields from vc-x1 sessions (0.8.0) [10]
-
-
+ - Add CLI flags: list, errors, recursive, glob (0.9.0) [11]
 
 # References
 
@@ -43,3 +43,5 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [8]: chores-01.md#add-all-optional-fields-seen-test
 [9]: chores-01.md#compact-single-line-output-with-grouped-errors
 [10]: chores-01.md#add-unknown-fields-from-vc-x1-sessions
+[11]: chores-01.md#add-cli-flags-list-errors-recursive-glob-20260324-090
+[12]: chores-01.md#add-support-for-agent-session-files

@@ -201,3 +201,57 @@ See [Chores format](README.md#chores-format)
      - `ccs-viewer data/*.jsonl` (regression — 0 errors on local data)
   9. Update the checklist in this chore section.
 
+## Add CLI flags: list, errors, recursive, glob (20260324 0.9.0)
+
+  Rework CLI to default to summary-only output with opt-in detail.
+  Add `glob` crate for program-side glob expansion (portable, no shell
+  dependency).
+
+  ### Design
+
+  Two modes based on `-r`:
+
+  **Without `-r`** — positional args are file glob patterns expanded
+  by the program:
+  ```
+  ccs-viewer "data/*.jsonl"
+  ccs-viewer "../*/.claude/*.jsonl"
+  ```
+
+  **With `-r`** — positional args are directories (or directory globs)
+  searched recursively. `--glob` filters which files match (default:
+  `*.jsonl`). Multiple `--glob` flags allowed:
+  ```
+  ccs-viewer -r .claude ../vc-x1/.claude
+  ccs-viewer -r --glob "*.jsonl" --glob "*.json" .claude
+  ```
+
+  ### Flags
+
+  - `-l` / `--list` — show per-file summary lines (default: off)
+  - `-e` / `--errors` — show grouped error detail section (default: off)
+  - `-r` / `--recursive` — recursive directory search
+  - `--glob <PATTERN>` — file pattern for recursive mode (repeatable,
+    default: `*.jsonl`)
+  - Summary line always shown
+
+  ### Implementation
+
+  1. Add `glob` crate dependency
+  2. Rework `Cli` struct: positional args become glob patterns,
+     add `-l`, `-e`, `-r`, `--glob` flags
+  3. Build file list: without `-r`, expand positional globs as file
+     paths; with `-r`, expand positional globs as directories then
+     walk them matching `--glob` patterns
+  4. Process files as before, but only print per-file lines if `-l`
+  5. Only print error section if `-e`
+  6. Always print summary
+  7. Directory positional args (without `-r`): auto-expand `--glob`
+     patterns inside the directory (non-recursive)
+
+## Add support for agent session files
+
+  Recursive search (`-r`) picks up `agent-*.jsonl` files alongside
+  main session files. These have a different record format and
+  currently cause ~10k deserialization errors across 28 files in
+  vc-x1. Need to add record types for the agent session format.
