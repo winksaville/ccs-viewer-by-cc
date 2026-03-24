@@ -162,6 +162,8 @@ pub struct UserRecord {
     pub version: Option<String>,
     pub git_branch: Option<String>,
     pub slug: Option<String>,
+    pub plan_content: Option<String>,
+    pub todos: Option<Value>,
 }
 
 // WARNING: When adding an Option field above, add its camelCase JSON name here.
@@ -182,6 +184,8 @@ impl UserRecord {
             "version",
             "gitBranch",
             "slug",
+            "planContent",
+            "todos",
             // UserContentBlock::ToolResult
             "message.content[tool_result].is_error",
         ]
@@ -249,6 +253,7 @@ pub struct AssistantRecord {
     pub version: Option<String>,
     pub git_branch: Option<String>,
     pub slug: Option<String>,
+    pub error: Option<String>,
 }
 
 // WARNING: When adding an Option field above (or in nested structs below),
@@ -266,6 +271,7 @@ impl AssistantRecord {
             "version",
             "gitBranch",
             "slug",
+            "error",
             // AssistantMessage (snake_case — no rename_all on this struct)
             "message.stop_reason",
             "message.stop_sequence",
@@ -395,6 +401,16 @@ impl ProgressRecord {
             "data.message",
             "data.prompt",
             "data.agentId",
+            "data.query",
+            "data.resultCount",
+            "data.output",
+            "data.fullOutput",
+            "data.elapsedTimeSeconds",
+            "data.taskId",
+            "data.timeoutMs",
+            "data.totalBytes",
+            "data.totalLines",
+            "data.normalizedMessages",
         ]
     }
 }
@@ -411,6 +427,16 @@ pub struct ProgressData {
     pub message: Option<Value>,
     pub prompt: Option<Value>,
     pub agent_id: Option<String>,
+    pub query: Option<String>,
+    pub result_count: Option<u64>,
+    pub output: Option<String>,
+    pub full_output: Option<String>,
+    pub elapsed_time_seconds: Option<u64>,
+    pub task_id: Option<String>,
+    pub timeout_ms: Option<u64>,
+    pub total_bytes: Option<u64>,
+    pub total_lines: Option<u64>,
+    pub normalized_messages: Option<Value>,
 }
 
 // ---------------------------------------------------------------------------
@@ -525,6 +551,7 @@ mod tests {
         "data/997afb98-c6aa-4f4a-92ac-a841e040414b.jsonl",
         "data/092de687-cd0d-4583-b872-bc2908dff3ba.jsonl",
         "data/86fb7a89-abfa-4e84-b862-5983e93c0b3b.jsonl",
+        "data/ccs-viewer-tests.jsonl",
     ];
 
     fn deserialize_file(path: &str) -> usize {

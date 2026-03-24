@@ -27,6 +27,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Add all-optional-fields-seen test, deny_unknown_fields, fix missing fields (0.6.0) [8]
  - Add all-optional-fields-seen test, reorder struct fields, fix sourceToolAssistantUUID rename (0.6.0) [8]
  - Compact single-line output with grouped error summary (0.7.0) [9]
+ - Add unknown fields from vc-x1 sessions (0.8.0) [10]
 
 
 
@@ -41,3 +42,4 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [7]: chores-01.md#add-clap-cli
 [8]: chores-01.md#add-all-optional-fields-seen-test
 [9]: chores-01.md#compact-single-line-output-with-grouped-errors
+[10]: chores-01.md#add-unknown-fields-from-vc-x1-sessions

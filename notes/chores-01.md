@@ -158,3 +158,46 @@ See [Chores format](README.md#chores-format)
   No more need to go to the file to identify the record type — it's
   right in the error line.
 
+## Add unknown fields from vc-x1 sessions (20260324 0.8.0)
+
+  Running `ccs-viewer` against `../vc-x1/.claude/*.jsonl` (25 files,
+  ~11.8k records) surfaced 7 unknown fields across 345 errors.
+  Working the list bottom-up (least frequent first):
+
+  - [x] `planContent` (String) in user — 1 occurrence, 1 file
+  - [x] `todos` (Value) in user — 3 occurrences, 1 file
+  - [x] `error` (String) in assistant — 5 occurrences, 3 files
+  - [x] `query` (String) in progress.data — 7 occurrences, 3 files
+  - [x] `resultCount` (u64) in progress.data — 7 occurrences, 3 files
+  - [x] `output` (String) in progress.data — 78 occurrences, 2 files
+        Also found on same test line: `fullOutput` (String),
+        `elapsedTimeSeconds` (u64), `taskId` (String), `timeoutMs` (u64),
+        `totalBytes` (u64), `totalLines` (u64)
+  - [x] `normalizedMessages` (Value) in progress.data — 244 occurrences, 2 files
+
+  Test data for new fields goes in `data/ccs-viewer-tests.jsonl`.
+
+  ### Process for each field
+
+  1. Run `ccs-viewer` to get the error list with file:line references.
+  2. Inspect the field's type and value from the reported file:line:
+     ```
+     sed -n '<line>p' <file> | python3 -c \
+       "import sys,json; d=json.load(sys.stdin); \
+        v=d.get('<field>') or d.get('data',{}).get('<field>'); \
+        print(type(v).__name__, json.dumps(v)[:200])"
+     ```
+  3. Append that line to `data/ccs-viewer-tests.jsonl`:
+     ```
+     sed -n '<line>p' <file> >> data/ccs-viewer-tests.jsonl
+     ```
+  4. Add `Option<T>` field to the struct in `src/types.rs`
+     (under the `--- Option fields ---` separator).
+  5. Add the camelCase JSON name to the struct's `optional_fields()`.
+  6. Run: `cargo fmt && cargo clippy && cargo test`
+  7. Install: `cargo install --path .`
+  8. Verify:
+     - `ccs-viewer data/ccs-viewer-tests.jsonl` (new field works)
+     - `ccs-viewer data/*.jsonl` (regression — 0 errors on local data)
+  9. Update the checklist in this chore section.
+
