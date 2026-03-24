@@ -34,6 +34,38 @@ pub enum Record {
     AgentName(AgentNameRecord),
 }
 
+impl Record {
+    /// Returns the type label string for this record variant.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Record::FileHistorySnapshot(_) => "file-history-snapshot",
+            Record::User(_) => "user",
+            Record::Assistant(_) => "assistant",
+            Record::Progress(_) => "progress",
+            Record::LastPrompt(_) => "last-prompt",
+            Record::QueueOperation(_) => "queue-operation",
+            Record::System(_) => "system",
+            Record::CustomTitle(_) => "custom-title",
+            Record::AgentName(_) => "agent-name",
+        }
+    }
+
+    /// Returns the full list of known record type labels.
+    pub fn all_labels() -> &'static [&'static str] {
+        &[
+            "file-history-snapshot",
+            "user",
+            "assistant",
+            "progress",
+            "last-prompt",
+            "queue-operation",
+            "system",
+            "custom-title",
+            "agent-name",
+        ]
+    }
+}
+
 // ---------------------------------------------------------------------------
 // file-history-snapshot
 // ---------------------------------------------------------------------------
@@ -309,10 +341,22 @@ pub struct AgentNameRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::fs::File;
     use std::io::{BufRead, BufReader};
 
+    const TEST_FILES: &[&str] = &[
+        "data/31ba272b-f7c2-436b-a017-269e27a64d07.jsonl",
+        "data/997afb98-c6aa-4f4a-92ac-a841e040414b.jsonl",
+        "data/092de687-cd0d-4583-b872-bc2908dff3ba.jsonl",
+        "data/86fb7a89-abfa-4e84-b862-5983e93c0b3b.jsonl",
+    ];
+
     fn deserialize_file(path: &str) -> usize {
+        deserialize_file_collecting(path, None)
+    }
+
+    fn deserialize_file_collecting(path: &str, mut labels: Option<&mut HashSet<String>>) -> usize {
         let file = File::open(path).expect("sample JSONL file should exist");
         let reader = BufReader::new(file);
         let mut count = 0;
@@ -328,6 +372,9 @@ mod tests {
                 i + 1,
                 result.unwrap_err()
             );
+            if let (Ok(record), Some(labels)) = (&result, labels.as_deref_mut()) {
+                labels.insert(record.label().to_string());
+            }
             count += 1;
         }
         count
@@ -362,6 +409,21 @@ mod tests {
         assert_eq!(
             deserialize_file("data/86fb7a89-abfa-4e84-b862-5983e93c0b3b.jsonl"),
             301
+        );
+    }
+
+    #[test]
+    fn all_variants_covered() {
+        let mut seen = HashSet::new();
+        for path in TEST_FILES {
+            deserialize_file_collecting(path, Some(&mut seen));
+        }
+        let expected: HashSet<String> =
+            Record::all_labels().iter().map(|s| s.to_string()).collect();
+        let missing: Vec<_> = expected.difference(&seen).collect();
+        assert!(
+            missing.is_empty(),
+            "Record variants not covered by test data: {missing:?}"
         );
     }
 }

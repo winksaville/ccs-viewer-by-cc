@@ -92,10 +92,13 @@ See [Chores format](README.md#chores-format)
   Discovered in `data/86fb7a89-...jsonl` (2222 records) where `local_command`
   system records lacked `durationMs`.
 
-## Add clap CLI
+## Add clap CLI (20260323 0.5.0)
 
-  Switch from manual arg parsing to `clap`. Gets us `-V`/`--version` for
-  free (from Cargo.toml), proper `--help`, and multi-file argument support.
-  Also add a test that asserts all 9 `Record` variants appear at least once
-  across test data files, so trimming a file doesn't silently drop coverage.
+  Switched from manual arg parsing to `clap` (derive). Gets `-V`/`--version`
+  for free from Cargo.toml, proper `--help`, and multi-file argument support
+  (`ccs-viewer data/*.jsonl`).
+
+  Added `Record::label()` method and `Record::all_labels()` to centralize
+  variant label strings. Added `all_variants_covered` test that asserts every
+  `Record` variant appears at least once across all test data files.
 

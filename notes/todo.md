@@ -11,7 +11,6 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
- - Add clap CLI with -V, multi-file args, and all-variants-covered test [7]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
 
@@ -24,6 +23,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Add queue-operation, system, custom-title, agent-name record types (0.2.0) [3]
  - Support text blocks in user content arrays (0.3.0) [5]
  - Make SystemRecord subtype-specific fields optional (0.4.0) [6]
+ - Add clap CLI with -V, multi-file args, and all-variants-covered test (0.5.0) [7]
 
 
 
