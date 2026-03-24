@@ -18,7 +18,7 @@ By default, only the summary line is printed. Use flags for more detail.
 | `--list` | `-l` | Show per-file summary lines |
 | `--errors` | `-e` | Show grouped error details after summary |
 | `--recursive` | `-r` | Treat positional args as directories, search recursively |
-| `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`) |
+| `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`, `*.meta.json`) |
 | `--version` | `-V` | Print version |
 | `--help` | `-h` | Print help |
 

@@ -255,3 +255,22 @@ See [Chores format](README.md#chores-format)
   main session files. These have a different record format and
   currently cause ~10k deserialization errors across 28 files in
   vc-x1. Need to add record types for the agent session format.
+
+## Add agent meta.json support (20260324 0.10.0)
+
+  Added `AgentMeta` struct to parse `agent-*.meta.json` files — small
+  standalone JSON files with `agentType` and `description` fields.
+
+  Changes:
+  - `types.rs`: new `AgentMeta` struct with `deny_unknown_fields`
+  - `main.rs`: detect `.meta.json` files by filename suffix and parse
+    as single-object JSON instead of line-by-line JSONL. Counted as
+    "agent-meta" in the summary output.
+  - Default `--glob` patterns now include `*.meta.json` alongside
+    `*.jsonl`, so recursive mode picks them up automatically.
+  - Added `deserialize_agent_meta` test with real test data copied
+    from `.claude/` subagents directory.
+
+  This is the first step toward full agent session support. The
+  `agent-*.jsonl` files still need `agentId` fields added to the
+  record structs (next task).

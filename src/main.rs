@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-use ccs_viewer::types::Record;
+use ccs_viewer::types::{AgentMeta, Record};
 
 #[derive(Parser)]
 #[command(version, about = "Claude Code session JSONL viewer")]
@@ -37,7 +37,7 @@ fn resolve_files(cli: &Cli) -> Vec<PathBuf> {
 
     if cli.recursive {
         let file_globs: Vec<&str> = if cli.globs.is_empty() {
-            vec!["*.jsonl"]
+            vec!["*.jsonl", "*.meta.json"]
         } else {
             cli.globs.iter().map(|s| s.as_str()).collect()
         };
@@ -79,7 +79,7 @@ fn resolve_files(cli: &Cli) -> Vec<PathBuf> {
         }
     } else {
         let file_globs: Vec<&str> = if cli.globs.is_empty() {
-            vec!["*.jsonl"]
+            vec!["*.jsonl", "*.meta.json"]
         } else {
             cli.globs.iter().map(|s| s.as_str()).collect()
         };
@@ -186,13 +186,50 @@ fn main() {
             std::process::exit(1);
         });
 
-        let reader = BufReader::new(file);
-        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
-        let mut file_errors: usize = 0;
         let filename = path
             .file_name()
             .map(|f| f.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.display().to_string());
+
+        // Handle .meta.json files as single-object JSON (not JSONL).
+        if filename.ends_with(".meta.json") {
+            let result: Result<AgentMeta, _> = serde_json::from_reader(file);
+            match result {
+                Ok(_meta) => {
+                    total_records += 1;
+                    if cli.list {
+                        println!("{filename}: agent-meta (ok)");
+                    }
+                }
+                Err(e) => {
+                    total_errors += 1;
+                    let key = ErrorKey {
+                        message: format!("{e}"),
+                        record_type: "agent-meta".to_string(),
+                    };
+                    let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
+                        count: 0,
+                        example_file: filename.clone(),
+                        example_line: 1,
+                        file_count: 0,
+                        seen_files: Vec::new(),
+                    });
+                    group.count += 1;
+                    if !group.seen_files.contains(&file_idx) {
+                        group.seen_files.push(file_idx);
+                        group.file_count += 1;
+                    }
+                    if cli.list {
+                        println!("{filename}: agent-meta (error)");
+                    }
+                }
+            }
+            continue;
+        }
+
+        let reader = BufReader::new(file);
+        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+        let mut file_errors: usize = 0;
 
         for (i, line) in reader.lines().enumerate() {
             let line = line.unwrap_or_else(|e| {

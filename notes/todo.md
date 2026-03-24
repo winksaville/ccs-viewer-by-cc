@@ -30,6 +30,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Compact single-line output with grouped error summary (0.7.0) [9]
  - Add unknown fields from vc-x1 sessions (0.8.0) [10]
  - Add CLI flags: list, errors, recursive, glob (0.9.0) [11]
+ - Add agent meta.json support (0.10.0) [13]
 
 # References
 
@@ -45,3 +46,4 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [10]: chores-01.md#add-unknown-fields-from-vc-x1-sessions
 [11]: chores-01.md#add-cli-flags-list-errors-recursive-glob-20260324-090
 [12]: chores-01.md#add-support-for-agent-session-files
+[13]: chores-01.md#add-agent-metajson-support-20260324-0100

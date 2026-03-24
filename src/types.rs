@@ -539,6 +539,17 @@ pub struct AgentNameRecord {
     pub session_id: String,
 }
 
+// ---------------------------------------------------------------------------
+// agent meta (agent-*.meta.json — standalone JSON, not JSONL records)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AgentMeta {
+    pub agent_type: String,
+    pub description: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -695,6 +706,15 @@ mod tests {
             never_seen.is_empty(),
             "Option fields never seen as Some in test data: {never_seen:?}"
         );
+    }
+
+    #[test]
+    fn deserialize_agent_meta() {
+        let path = "data/agent-adf742daa2c66fe48.meta.json";
+        let file = File::open(path).expect("agent meta file should exist");
+        let meta: AgentMeta = serde_json::from_reader(file).expect("agent meta should deserialize");
+        assert_eq!(meta.agent_type, "Explore");
+        assert!(!meta.description.is_empty());
     }
 
     #[test]
