@@ -165,6 +165,9 @@ pub struct UserRecord {
     pub slug: Option<String>,
     pub plan_content: Option<String>,
     pub todos: Option<Value>,
+    pub thinking_metadata: Option<Value>,
+    pub is_visible_in_transcript_only: Option<bool>,
+    pub is_compact_summary: Option<bool>,
 }
 
 // WARNING: When adding an Option field above, add its camelCase JSON name here.
@@ -188,6 +191,9 @@ impl UserRecord {
             "slug",
             "planContent",
             "todos",
+            "thinkingMetadata",
+            "isVisibleInTranscriptOnly",
+            "isCompactSummary",
             // UserContentBlock::ToolResult
             "message.content[tool_result].is_error",
         ]
@@ -417,6 +423,8 @@ impl ProgressRecord {
             "data.totalBytes",
             "data.totalLines",
             "data.normalizedMessages",
+            "data.taskDescription",
+            "data.taskType",
         ]
     }
 }
@@ -443,6 +451,8 @@ pub struct ProgressData {
     pub total_bytes: Option<u64>,
     pub total_lines: Option<u64>,
     pub normalized_messages: Option<Value>,
+    pub task_description: Option<String>,
+    pub task_type: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -490,8 +500,8 @@ pub struct SystemRecord {
     pub subtype: String,
     pub timestamp: String,
     pub uuid: String,
-    pub is_meta: bool,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub is_meta: Option<bool>,
     pub agent_id: Option<String>,
     pub duration_ms: Option<u64>,
     pub content: Option<String>,
@@ -503,6 +513,10 @@ pub struct SystemRecord {
     pub version: Option<String>,
     pub git_branch: Option<String>,
     pub slug: Option<String>,
+    pub error: Option<Value>,
+    pub retry_in_ms: Option<f64>,
+    pub retry_attempt: Option<u64>,
+    pub max_retries: Option<u64>,
 }
 
 // WARNING: When adding an Option field above, add its camelCase JSON name here.
@@ -510,6 +524,7 @@ pub struct SystemRecord {
 impl SystemRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "isMeta",
             "agentId",
             "durationMs",
             "content",
@@ -521,6 +536,10 @@ impl SystemRecord {
             "version",
             "gitBranch",
             "slug",
+            "error",
+            "retryInMs",
+            "retryAttempt",
+            "maxRetries",
         ]
     }
 }

@@ -37,7 +37,7 @@ fn resolve_files(cli: &Cli) -> Vec<PathBuf> {
 
     if cli.recursive {
         let file_globs: Vec<&str> = if cli.globs.is_empty() {
-            vec!["*.jsonl", "*.meta.json"]
+            vec!["*.jsonl", "agent-*.meta.json"]
         } else {
             cli.globs.iter().map(|s| s.as_str()).collect()
         };
@@ -79,7 +79,7 @@ fn resolve_files(cli: &Cli) -> Vec<PathBuf> {
         }
     } else {
         let file_globs: Vec<&str> = if cli.globs.is_empty() {
-            vec!["*.jsonl", "*.meta.json"]
+            vec!["*.jsonl", "agent-*.meta.json"]
         } else {
             cli.globs.iter().map(|s| s.as_str()).collect()
         };

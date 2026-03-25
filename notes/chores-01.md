@@ -332,6 +332,41 @@ See [Chores format](README.md#chores-format)
 
   - dev0: version bump + this chores section
   - dev1: simple field additions (#1–#6, ~5107 errors)
+  - dev1.1: first-line sniff test to skip non-CCS .jsonl files (#11)
   - dev2: type fixes (#7–#9, ~1566 errors)
   - dev3: new summary variant (#10, 689 errors)
   - 0.12.0: final release, remove -devN
+
+  ### dev1: simple field additions
+
+  Added optional fields to existing structs:
+  - `UserRecord`: `thinkingMetadata` (Value), `isVisibleInTranscriptOnly`
+    (bool), `isCompactSummary` (bool — discovered alongside
+    `isVisibleInTranscriptOnly`)
+  - `ProgressData`: `taskDescription` (String), `taskType` (String —
+    discovered alongside `taskDescription`)
+  - `SystemRecord`: `error` (Value), `retryInMs` (f64), `retryAttempt`
+    (u64), `maxRetries` (u64 — discovered in same sample record)
+
+  Also made `SystemRecord.isMeta` optional — one record (the api_error
+  with `error` field) lacked it entirely.
+
+  Fixed false positives:
+  - `AgentMeta` errors (#3, #4) were mypy cache `*.meta.json` files,
+    not agent meta files. Narrowed default glob from `*.meta.json` to
+    `agent-*.meta.json` — eliminates 2115 false positives.
+
+  ### Progress
+
+  ```
+  Before (0.11.0): 5077 files, 137041 records, 7371 errors (12 categories)
+  dev1 (0.12.0):   2965 files, 140374 records, 2264 errors (6 categories)
+  ```
+
+  Remaining errors (for dev1.1, dev2, dev3):
+  - 1475x null string in assistant
+  - 689x unknown variant `summary`
+  - 49x null string in system
+  - 42x sequence in queue-operation content
+  - 5x non-CCS line2.jsonl (dev1.1 sniff test)
+  - 4x malformed JSON (unfixable)
