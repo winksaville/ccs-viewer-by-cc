@@ -66,6 +66,9 @@ pub enum Record {
 
     #[serde(rename = "agent-name")]
     AgentName(AgentNameRecord),
+
+    #[serde(rename = "summary")]
+    Summary(SummaryRecord),
 }
 
 /// Single source of truth for record type label strings.
@@ -79,6 +82,7 @@ const RECORD_LABELS: &[&str] = &[
     "system",
     "custom-title",
     "agent-name",
+    "summary",
 ];
 
 impl Record {
@@ -94,6 +98,7 @@ impl Record {
             Record::System(_) => 6,
             Record::CustomTitle(_) => 7,
             Record::AgentName(_) => 8,
+            Record::Summary(_) => 9,
         }]
     }
 
@@ -570,6 +575,17 @@ pub struct CustomTitleRecord {
 pub struct AgentNameRecord {
     pub agent_name: String,
     pub session_id: String,
+}
+
+// ---------------------------------------------------------------------------
+// summary
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct SummaryRecord {
+    pub summary: String,
+    pub leaf_uuid: String,
 }
 
 // ---------------------------------------------------------------------------

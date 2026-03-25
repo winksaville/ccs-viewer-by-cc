@@ -409,6 +409,25 @@ See [Chores format](README.md#chores-format)
 
   `-E` implies `-e` behavior — no need to pass both.
 
+  ### dev3: add summary record variant
+
+  Added `Summary` variant to the `Record` enum with a
+  `SummaryRecord` struct: `summary` (String) and `leafUuid`
+  (String). Summary records appear at the start or end of
+  session files as a short description of the conversation.
+
+  ### Final progress
+
+  ```
+  Before (0.11.0):  5077 files, 137041 records,  7371 errors
+  dev3 (0.12.0):     871 files, 122178 records,     0 errors, 18 skipped
+  ```
+
+  File count dropped from ~5077 to ~871 due to:
+  - Narrowed meta glob (eliminated ~2100 mypy cache files)
+  - Sniff test (skips ~18 non-CCS .jsonl files)
+  - Removed circular symlink in rlibc-x (user fix, not code)
+
 ## Replace serde_json::Value with typed structs
 
   Several struct fields use `serde_json::Value` as a catch-all for

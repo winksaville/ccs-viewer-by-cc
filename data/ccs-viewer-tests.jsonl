@@ -13,3 +13,4 @@
 {"parentUuid":null,"isSidechain":false,"type":"system","subtype":"init","timestamp":"2026-01-01T00:00:00.000Z","uuid":"test-null-sys-parent-1"}
 {"type":"queue-operation","operation":"enqueue","timestamp":"2026-01-01T00:00:00.000Z","sessionId":"test-queue-array","content":[{"type":"text","text":"test content as array"}]}
 {"parentUuid":"test-parent","isSidechain":false,"type":"system","subtype":"context_pruned","timestamp":"2026-01-30T04:10:22.000Z","uuid":"test-logical-1","isMeta":false,"logicalParentUuid":"test-logical-parent","compactMetadata":{"removedMessages":5}}
+{"type":"summary","summary":"Implementing test feature","leafUuid":"8b80242f-e1eb-4706-9af3-5ddd8473c53e"}

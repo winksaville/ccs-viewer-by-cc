@@ -11,7 +11,7 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
- - Fix remaining deserialization errors across ~/data/prgs (7371 errors in 5077 files) [15] — in progress
+ - Fix remaining deserialization errors across ~/data/prgs (7371 → 0 errors) [15] — done
  - Replace serde_json::Value fields with typed structs or custom Opaque newtype [17]
  - Add first-line sniff test to skip non-CCS .jsonl files [16] — done
  - Add support for agent session files (agent-*.jsonl) [12] — done, see [13],[14]
