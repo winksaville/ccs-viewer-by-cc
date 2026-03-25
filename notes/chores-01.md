@@ -370,17 +370,57 @@ See [Chores format](README.md#chores-format)
 
   Summary line now shows skipped count when non-zero.
 
+  ### dev2: type fixes
+
+  Fixed type mismatches where fields had the wrong type:
+
+  - `AssistantRecord.parentUuid`: String → Option<String>
+    (null in agent sessions without a parent)
+  - `SystemRecord.parentUuid`: String → Option<String>
+    (null in agent sessions without a parent)
+  - `QueueOperationRecord.content`: Option<String> →
+    Option<Value> (sometimes an array of content blocks)
+
+  Also discovered and fixed two more unknown system fields
+  (both from context pruning records, 26x in 21 files):
+  - `logicalParentUuid`: Option<String>
+  - `compactMetadata`: Option<Value>
+
   ### Progress
 
   ```
   Before (0.11.0):  5077 files, 137041 records,  7371 errors (12 categories)
   dev1 (0.12.0):    2965 files, 140374 records,  2264 errors (6 categories)
   dev1.1 (0.12.0):  2687 files, 140451 records,  2259 errors (5 categories), 278 skipped
+  dev2 (0.12.0):    2689 files, 142333 records,   693 errors (2 categories), 278 skipped
   ```
 
-  Remaining errors (for dev2, dev3):
-  - 1475x null string in assistant
-  - 689x unknown variant `summary`
-  - 49x null string in system
-  - 42x sequence in queue-operation content
+  Remaining errors (for dev3):
+  - 689x unknown variant `summary` (250 files)
   - 4x malformed JSON (unfixable)
+
+## Replace serde_json::Value with typed structs
+
+  Several struct fields use `serde_json::Value` as a catch-all for
+  JSON we haven't fully typed yet. This works but loses type safety
+  and doesn't catch schema changes via `deny_unknown_fields`.
+
+  Fields currently using Value:
+  - `UserRecord`: thinkingMetadata, toolUseResult, todos
+  - `SystemRecord`: error, compactMetadata
+  - `ProgressData`: message, prompt, normalizedMessages,
+    serverToolUse, iterations
+  - `QueueOperationRecord`: content
+  - `AssistantRecord` nested: serverToolUse, iterations,
+    caller, container, contextManagement
+
+  Options:
+  1. Typed structs per field — best safety, most work, risks
+     breakage on upstream schema changes
+  2. Custom `Opaque(Value)` newtype — signals "structured but
+     not yet typed", distinguishes from deliberately modeled
+     fields, can incrementally promote to real structs
+
+  If we go with a catch-all, prefer our own type over bare
+  `serde_json::Value` so grep can find all untyped fields and
+  we can add validation or logging in one place later.

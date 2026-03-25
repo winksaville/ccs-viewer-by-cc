@@ -246,12 +246,12 @@ pub enum ToolResultContent {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssistantRecord {
-    pub parent_uuid: String,
     pub is_sidechain: bool,
     pub message: AssistantMessage,
     pub uuid: String,
     pub timestamp: String,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub parent_uuid: Option<String>,
     pub agent_id: Option<String>,
     pub is_api_error_message: Option<bool>,
     pub request_id: Option<String>,
@@ -271,6 +271,7 @@ pub struct AssistantRecord {
 impl AssistantRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "parentUuid",
             "agentId",
             "isApiErrorMessage",
             "requestId",
@@ -477,7 +478,7 @@ pub struct QueueOperationRecord {
     pub timestamp: String,
     pub session_id: String,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
-    pub content: Option<String>,
+    pub content: Option<Value>,
 }
 
 // WARNING: When adding an Option field above, add its camelCase JSON name here.
@@ -495,12 +496,12 @@ impl QueueOperationRecord {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SystemRecord {
-    pub parent_uuid: String,
     pub is_sidechain: bool,
     pub subtype: String,
     pub timestamp: String,
     pub uuid: String,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub parent_uuid: Option<String>,
     pub is_meta: Option<bool>,
     pub agent_id: Option<String>,
     pub duration_ms: Option<u64>,
@@ -514,6 +515,8 @@ pub struct SystemRecord {
     pub git_branch: Option<String>,
     pub slug: Option<String>,
     pub error: Option<Value>,
+    pub logical_parent_uuid: Option<String>,
+    pub compact_metadata: Option<Value>,
     pub retry_in_ms: Option<f64>,
     pub retry_attempt: Option<u64>,
     pub max_retries: Option<u64>,
@@ -524,6 +527,7 @@ pub struct SystemRecord {
 impl SystemRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "parentUuid",
             "isMeta",
             "agentId",
             "durationMs",
@@ -537,6 +541,8 @@ impl SystemRecord {
             "gitBranch",
             "slug",
             "error",
+            "logicalParentUuid",
+            "compactMetadata",
             "retryInMs",
             "retryAttempt",
             "maxRetries",
