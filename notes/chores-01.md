@@ -399,6 +399,16 @@ See [Chores format](README.md#chores-format)
   - 689x unknown variant `summary` (250 files)
   - 4x malformed JSON (unfixable)
 
+  ### dev2.1: add -E flag for error file paths
+
+  Added `-E`/`--error-files` flag: like `-e` but also lists all
+  file paths (with line numbers) for each error group. Reworked
+  `ErrorGroup` to store all file:line hits instead of just one
+  example. The error summary line now shows the full path of the
+  first hit instead of just the filename.
+
+  `-E` implies `-e` behavior — no need to pass both.
+
 ## Replace serde_json::Value with typed structs
 
   Several struct fields use `serde_json::Value` as a catch-all for

@@ -12,7 +12,7 @@ use ccs_viewer::types::{AgentMeta, Record};
     version,
     about = "Claude Code session JSONL viewer",
     after_help = "\
-Output order: per-file list (-l) > errors (-e) > skipped (-s) > summary (always last).
+Output order: per-file list (-l) > errors (-e/-E) > skipped (-s) > summary (always last).
 
 Summary line: <files> file(s), <records> records, <errors> errors[, <n> skipped]
   files:   number of files processed (excludes skipped)
@@ -37,6 +37,10 @@ struct Cli {
     /// Show grouped error details (deduplicated by message, sorted by count)
     #[arg(short, long)]
     errors: bool,
+
+    /// Show error details with full file paths for each error group
+    #[arg(short = 'E', long)]
+    error_files: bool,
 
     /// Recursively search directories for matching files
     #[arg(short, long)]
@@ -179,16 +183,21 @@ struct ErrorKey {
     record_type: String,
 }
 
+/// A single file:line occurrence of an error.
+struct ErrorHit {
+    path: String,
+    line: usize,
+}
+
 /// Tracks one group of identical errors across files.
 struct ErrorGroup {
     count: usize,
-    /// One representative file:line for grabbing test data.
-    example_file: String,
-    example_line: usize,
     /// How many distinct files contain this error.
     file_count: usize,
     /// Track which files we've seen (by index) to count distinct files.
     seen_files: Vec<usize>,
+    /// All file:line occurrences (one per distinct file).
+    hits: Vec<ErrorHit>,
 }
 
 fn main() {
@@ -235,15 +244,18 @@ fn main() {
                     };
                     let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
                         count: 0,
-                        example_file: filename.clone(),
-                        example_line: 1,
                         file_count: 0,
                         seen_files: Vec::new(),
+                        hits: Vec::new(),
                     });
                     group.count += 1;
                     if !group.seen_files.contains(&file_idx) {
                         group.seen_files.push(file_idx);
                         group.file_count += 1;
+                        group.hits.push(ErrorHit {
+                            path: path.display().to_string(),
+                            line: 1,
+                        });
                     }
                     if cli.list {
                         println!("{filename}: agent-meta (error)");
@@ -303,15 +315,18 @@ fn main() {
                     };
                     let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
                         count: 0,
-                        example_file: filename.clone(),
-                        example_line: i + 1,
                         file_count: 0,
                         seen_files: Vec::new(),
+                        hits: Vec::new(),
                     });
                     group.count += 1;
                     if !group.seen_files.contains(&file_idx) {
                         group.seen_files.push(file_idx);
                         group.file_count += 1;
+                        group.hits.push(ErrorHit {
+                            path: path.display().to_string(),
+                            line: i + 1,
+                        });
                     }
                 }
             }
@@ -336,20 +351,22 @@ fn main() {
     let file_count = files.len();
     let processed = file_count - total_skipped;
 
-    if cli.errors && !error_groups.is_empty() {
+    let show_errors = cli.errors || cli.error_files;
+    if show_errors && !error_groups.is_empty() {
         println!("{}Errors:", if cli.list { "\n" } else { "" });
         let mut groups: Vec<_> = error_groups.into_iter().collect();
         groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
         for (key, group) in &groups {
+            let first = &group.hits[0];
             println!(
                 "  {}x {} in {} ({}:{} in {} file(s))",
-                group.count,
-                key.message,
-                key.record_type,
-                group.example_file,
-                group.example_line,
-                group.file_count,
+                group.count, key.message, key.record_type, first.path, first.line, group.file_count,
             );
+            if cli.error_files {
+                for hit in &group.hits {
+                    println!("    {}:{}", hit.path, hit.line);
+                }
+            }
         }
         println!();
     }

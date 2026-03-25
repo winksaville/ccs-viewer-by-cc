@@ -28,6 +28,7 @@ By default, only the summary line is printed. Use flags for more detail.
 |------|-------|-------------|
 | `--list` | `-l` | Show per-file summary lines (one line per file with record type counts) |
 | `--errors` | `-e` | Show grouped error details (deduplicated by message, sorted by count) |
+| `--error-files` | `-E` | Like `-e` but also lists full file paths per error group |
 | `--recursive` | `-r` | Treat positional args as directories, search recursively |
 | `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`, `agent-*.meta.json`) |
 | `--strict` | | Exit 2 if deserialization errors are present |
