@@ -11,6 +11,7 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
+ - Fix remaining deserialization errors across ~/data/prgs (7371 errors in 5077 files) [15] — in progress
  - Add support for agent session files (agent-*.jsonl) [12] — done, see [13],[14]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
@@ -49,3 +50,4 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [12]: chores-01.md#add-support-for-agent-session-files
 [13]: chores-01.md#add-agent-metajson-support-20260324-0100
 [14]: chores-01.md#add-agentid-to-record-structs-for-agent-jsonl-20260324-0110
+[15]: chores-01.md#fix-remaining-deserialization-errors-across-all-sessions

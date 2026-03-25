@@ -297,3 +297,41 @@ See [Chores format](README.md#chores-format)
 
   Verified: 0 errors across 66 files in vc-x1/.claude and all local
   test data.
+
+## Fix remaining deserialization errors across all sessions (20260325 0.12.0)
+
+  Running `ccs-viewer . -e -r` from `~/data/prgs` hits 5077 files,
+  137k records, and 7371 errors (after removing 3 benchmark logs.jsonl
+  files that accounted for ~60M false positives).
+
+  ### Error inventory (12 categories, 7371 total)
+
+  **Simple field additions** (add as Option to existing structs):
+  1. 2963x `thinkingMetadata` unknown in user (309 files)
+  2. 26x `isVisibleInTranscriptOnly` unknown in user (21 files)
+  3. 2106x `data_mtime` unknown in agent-meta (2106 files)
+  4. 9x `id` unknown in agent-meta (9 files)
+  5. 2x `taskDescription` unknown in progress (1 file)
+  6. 1x `error` unknown in system (1 file)
+
+  **Type fixes** (field type mismatch):
+  7. 1475x null string in assistant (1475 files) — a required String
+     field is sometimes null; need sample data to identify which
+  8. 49x null string in system (43 files) — same issue
+  9. 42x sequence instead of string in queue-operation (21 files) —
+     `content` is sometimes an array; change Option<String> to Option<Value>
+
+  **New variant:**
+  10. 689x unknown variant `summary` (250 files) — add Summary variant
+
+  **Unfixable / out of scope:**
+  11. 5x missing field `type` in line2.jsonl (2 files) — not CCS files
+  12. 4x malformed JSON at column 1 (1 file) — corrupt data
+
+  ### Plan
+
+  - dev0: version bump + this chores section
+  - dev1: simple field additions (#1–#6, ~5107 errors)
+  - dev2: type fixes (#7–#9, ~1566 errors)
+  - dev3: new summary variant (#10, 689 errors)
+  - 0.12.0: final release, remove -devN
