@@ -274,3 +274,26 @@ See [Chores format](README.md#chores-format)
   This is the first step toward full agent session support. The
   `agent-*.jsonl` files still need `agentId` fields added to the
   record structs (next task).
+
+## Add agentId to record structs for agent JSONL (20260324 0.11.0)
+
+  Agent subagent JSONL files (`agent-*.jsonl`) have the same record
+  format as main session files but include an `agentId` field on
+  every record. Added `agent_id: Option<String>` to all four record
+  structs that appear in agent sessions:
+
+  - `UserRecord`
+  - `AssistantRecord`
+  - `ProgressRecord`
+  - `SystemRecord`
+
+  Added `agentId` to each struct's `optional_fields()` list and
+  created `data/agent-test.jsonl` with 7 records covering all four
+  types.
+
+  Also made `AgentMeta.description` optional — vc-x1 has meta.json
+  files with only `agentType` and no `description`. Added test data
+  from vc-x1 for the no-description case.
+
+  Verified: 0 errors across 66 files in vc-x1/.claude and all local
+  test data.

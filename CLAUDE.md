@@ -136,7 +136,7 @@ path followed by the **12-character** changeID (the full short form from
 Use `vc-x1 chid -R .,.claude -L` to get both 12-character changeIDs
 (first line is app repo, second is `.claude`).
 
-## Session End Workflows
+## Commit and Push Workflow
 
 When the user asks to commit, follow this sequence:
 

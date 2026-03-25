@@ -149,6 +149,7 @@ pub struct UserRecord {
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
     pub is_meta: Option<bool>,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub agent_id: Option<String>,
     pub parent_uuid: Option<String>,
     pub prompt_id: Option<String>,
     pub permission_mode: Option<String>,
@@ -171,6 +172,7 @@ pub struct UserRecord {
 impl UserRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "agentId",
             "parentUuid",
             "promptId",
             "permissionMode",
@@ -244,6 +246,7 @@ pub struct AssistantRecord {
     pub uuid: String,
     pub timestamp: String,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub agent_id: Option<String>,
     pub is_api_error_message: Option<bool>,
     pub request_id: Option<String>,
     pub user_type: Option<String>,
@@ -262,6 +265,7 @@ pub struct AssistantRecord {
 impl AssistantRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "agentId",
             "isApiErrorMessage",
             "requestId",
             "userType",
@@ -366,6 +370,7 @@ pub struct ProgressRecord {
     pub timestamp: String,
     pub uuid: String,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub agent_id: Option<String>,
     #[serde(rename = "parentToolUseID")]
     pub parent_tool_use_id: Option<String>,
     #[serde(rename = "toolUseID")]
@@ -385,6 +390,7 @@ pub struct ProgressRecord {
 impl ProgressRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "agentId",
             "parentToolUseID",
             "toolUseID",
             "userType",
@@ -486,6 +492,7 @@ pub struct SystemRecord {
     pub uuid: String,
     pub is_meta: bool,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
+    pub agent_id: Option<String>,
     pub duration_ms: Option<u64>,
     pub content: Option<String>,
     pub level: Option<String>,
@@ -503,6 +510,7 @@ pub struct SystemRecord {
 impl SystemRecord {
     pub fn optional_fields() -> &'static [&'static str] {
         &[
+            "agentId",
             "durationMs",
             "content",
             "level",
@@ -547,7 +555,7 @@ pub struct AgentNameRecord {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AgentMeta {
     pub agent_type: String,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[cfg(test)]
@@ -563,6 +571,7 @@ mod tests {
         "data/092de687-cd0d-4583-b872-bc2908dff3ba.jsonl",
         "data/86fb7a89-abfa-4e84-b862-5983e93c0b3b.jsonl",
         "data/ccs-viewer-tests.jsonl",
+        "data/agent-test.jsonl",
     ];
 
     fn deserialize_file(path: &str) -> usize {
@@ -709,12 +718,26 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_agent_jsonl() {
+        assert_eq!(deserialize_file("data/agent-test.jsonl"), 7);
+    }
+
+    #[test]
     fn deserialize_agent_meta() {
         let path = "data/agent-adf742daa2c66fe48.meta.json";
         let file = File::open(path).expect("agent meta file should exist");
         let meta: AgentMeta = serde_json::from_reader(file).expect("agent meta should deserialize");
         assert_eq!(meta.agent_type, "Explore");
-        assert!(!meta.description.is_empty());
+        assert!(meta.description.is_some());
+    }
+
+    #[test]
+    fn deserialize_agent_meta_no_description() {
+        let path = "data/agent-ada8e90bba5770efc.meta.json";
+        let file = File::open(path).expect("agent meta file should exist");
+        let meta: AgentMeta = serde_json::from_reader(file).expect("agent meta should deserialize");
+        assert_eq!(meta.agent_type, "Explore");
+        assert!(meta.description.is_none());
     }
 
     #[test]

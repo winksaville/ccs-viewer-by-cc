@@ -11,7 +11,7 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
- - Add support for agent session files (agent-*.jsonl) [12]
+ - Add support for agent session files (agent-*.jsonl) [12] — done, see [13],[14]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
 
@@ -31,6 +31,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Add unknown fields from vc-x1 sessions (0.8.0) [10]
  - Add CLI flags: list, errors, recursive, glob (0.9.0) [11]
  - Add agent meta.json support (0.10.0) [13]
+ - Add agentId to record structs for agent JSONL (0.11.0) [14]
 
 # References
 
@@ -47,3 +48,4 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [11]: chores-01.md#add-cli-flags-list-errors-recursive-glob-20260324-090
 [12]: chores-01.md#add-support-for-agent-session-files
 [13]: chores-01.md#add-agent-metajson-support-20260324-0100
+[14]: chores-01.md#add-agentid-to-record-structs-for-agent-jsonl-20260324-0110
