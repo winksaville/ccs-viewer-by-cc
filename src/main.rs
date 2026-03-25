@@ -12,13 +12,15 @@ use ccs_viewer::types::{AgentMeta, Record};
     version,
     about = "Claude Code session JSONL viewer",
     after_help = "\
-Output order: per-file list (-l) > errors (-e/-E) > skipped (-s) > summary (always last).
+Output order: per-file list (-l) > errors (-e/-E) > skipped (-s) > empty (-z) > summary (always last).
 
-Summary line: <files> file(s), <records> records, <errors> errors[, <n> skipped]
-  files:   number of files processed (excludes skipped)
-  records: total successfully deserialized records
-  errors:  total deserialization failures
+Summary: <total> total files, <valid> valid files with <records> records[, <n> empty][, <n> skipped][, <n> errors]
+  total:   all files found by glob/recursive search
+  valid:   files successfully processed (total minus empty and skipped)
+  records: total successfully deserialized records (in valid files)
+  empty:   zero-length files (shown when non-zero)
   skipped: files that failed the first-line sniff test (shown when non-zero)
+  errors:  total deserialization failures (shown when non-zero)
 
 Exit codes:
   0  Success (default, even with deserialization errors)
@@ -57,6 +59,10 @@ struct Cli {
     /// Show files skipped by the first-line sniff test
     #[arg(short, long)]
     skipped: bool,
+
+    /// Show empty (zero-length) files
+    #[arg(short, long)]
+    zero: bool,
 }
 
 /// Resolve CLI patterns into a list of file paths.
@@ -212,7 +218,9 @@ fn main() {
     let mut total_records: usize = 0;
     let mut total_errors: usize = 0;
     let mut total_skipped: usize = 0;
+    let mut total_empty: usize = 0;
     let mut skipped_files: Vec<String> = Vec::new();
+    let mut empty_files: Vec<String> = Vec::new();
     let mut error_groups: HashMap<ErrorKey, ErrorGroup> = HashMap::new();
 
     for (file_idx, path) in files.iter().enumerate() {
@@ -267,16 +275,18 @@ fn main() {
 
         let mut reader = BufReader::new(file);
 
-        // First-line sniff test: skip .jsonl files that don't look like
-        // Claude Code sessions. CCS files start with {"type": or {"parentUuid":.
+        // Check for empty files before the sniff test.
         let mut first_line = String::new();
         if reader.read_line(&mut first_line).unwrap_or(0) == 0 {
-            total_skipped += 1;
-            if cli.skipped {
-                skipped_files.push(path.display().to_string());
+            total_empty += 1;
+            if cli.zero {
+                empty_files.push(path.display().to_string());
             }
             continue;
         }
+
+        // First-line sniff test: skip .jsonl files that don't look like
+        // Claude Code sessions. CCS files start with {"type": or {"parentUuid":.
         let trimmed = first_line.trim();
         if !trimmed.starts_with("{\"type\":") && !trimmed.starts_with("{\"parentUuid\":") {
             total_skipped += 1;
@@ -349,7 +359,7 @@ fn main() {
     }
 
     let file_count = files.len();
-    let processed = file_count - total_skipped;
+    let processed = file_count - total_skipped - total_empty;
 
     let show_errors = cli.errors || cli.error_files;
     if show_errors && !error_groups.is_empty() {
@@ -379,13 +389,27 @@ fn main() {
         println!();
     }
 
+    if cli.zero && !empty_files.is_empty() {
+        println!("Empty:");
+        for f in &empty_files {
+            println!("  {f}");
+        }
+        println!();
+    }
+
+    let total_files = processed + total_skipped + total_empty;
+    let mut suffix = String::new();
+    if total_empty > 0 {
+        suffix.push_str(&format!(", {total_empty} empty"));
+    }
+    if total_skipped > 0 {
+        suffix.push_str(&format!(", {total_skipped} skipped"));
+    }
+    if total_errors > 0 {
+        suffix.push_str(&format!(", {total_errors} errors"));
+    }
     println!(
-        "Summary: {processed} file(s), {total_records} records, {total_errors} errors{}",
-        if total_skipped > 0 {
-            format!(", {total_skipped} skipped")
-        } else {
-            String::new()
-        },
+        "Summary: {total_files} total files, {processed} valid files with {total_records} records{suffix}"
     );
 
     if cli.strict && total_errors > 0 {

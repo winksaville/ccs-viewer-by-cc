@@ -33,6 +33,7 @@ By default, only the summary line is printed. Use flags for more detail.
 | `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`, `agent-*.meta.json`) |
 | `--strict` | | Exit 2 if deserialization errors are present |
 | `--skipped` | `-s` | Show files that failed the first-line sniff test |
+| `--zero` | `-z` | Show empty (zero-length) files |
 | `--version` | `-V` | Print version |
 | `--help` | `-h` | Print help |
 
@@ -80,26 +81,28 @@ Errors:
   2x unknown variant `summary` at line 1 column 17 in summary (abc.jsonl:1 in 2 file(s))
   1x invalid type: null, expected a string in assistant (def.jsonl:1 in 1 file(s))
 
-Summary: 42 file(s), 1523 records, 3 errors, 2 skipped
+Summary: 46 total files, 42 valid files with 1523 records, 2 empty, 2 skipped, 3 errors
 ```
 
 ### Output
 
-Output order: per-file list (if `-l`) → errors (if `-e`) → skipped
-files (if `-s`) → **summary** (always last).
+Output order: per-file list (if `-l`) → errors (if `-e`/`-E`) → skipped
+files (if `-s`) → empty files (if `-z`) → **summary** (always last).
 
 The **summary line** is always printed and always last:
 
 ```
-Summary: <files> file(s), <records> records, <errors> errors[, <n> skipped]
+Summary: <total> total files, <valid> valid files with <records> records[, <n> empty][, <n> skipped][, <n> errors]
 ```
 
 | Field | Meaning |
 |-------|---------|
-| files | Number of files processed (excludes skipped files) |
-| records | Total successfully deserialized records |
-| errors | Total deserialization failures |
+| total | All files found by glob/recursive search |
+| valid | Files successfully processed (total minus empty and skipped) |
+| records | Total successfully deserialized records (in valid files) |
+| empty | Zero-length files (shown when non-zero) |
 | skipped | Files that failed the first-line sniff test (shown when non-zero) |
+| errors | Total deserialization failures (shown when non-zero) |
 
 ### Exit codes
 
