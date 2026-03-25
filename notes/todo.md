@@ -12,7 +12,7 @@ A markdown list of task to do in the near feature
 See [Foramt details](README.md#todo-format)
 
  - Fix remaining deserialization errors across ~/data/prgs (7371 errors in 5077 files) [15] — in progress
- - Add first-line sniff test to skip non-CCS .jsonl files [16]
+ - Add first-line sniff test to skip non-CCS .jsonl files [16] — done
  - Add support for agent session files (agent-*.jsonl) [12] — done, see [13],[14]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]

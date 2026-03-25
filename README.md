@@ -1,9 +1,7 @@
-# ccs viewer by cc
+# ccs-viewer
 
-This is claude-code viewer which claude-code is writing.
-in hwr.claude/ is a json file where I asked code code to
-create a hello world in rust. We are going to implement
-an app at displays that conversation.
+A CLI tool for viewing and validating Claude Code session files
+(JSONL and agent meta.json). Written in Rust, built by Claude Code.
 
 This is the main repo of a dual-repo convention for using
 a bot to help in the development of a coding project. The goal
@@ -15,6 +13,105 @@ is a coherent story of the development of the project across time.
 The beginnings of that tool is [vc-x1](https://github.com/winksaville/vc-x1)
 which currently does achieve this goal, but is being used as a
 first test bed.
+
+## CLI Usage
+
+```
+ccs-viewer [OPTIONS] <PATTERNS>...
+```
+
+By default, only the summary line is printed. Use flags for more detail.
+
+### Options
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--list` | `-l` | Show per-file summary lines (one line per file with record type counts) |
+| `--errors` | `-e` | Show grouped error details (deduplicated by message, sorted by count) |
+| `--recursive` | `-r` | Treat positional args as directories, search recursively |
+| `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`, `agent-*.meta.json`) |
+| `--strict` | | Exit 2 if deserialization errors are present |
+| `--skipped` | `-s` | Show files that failed the first-line sniff test |
+| `--version` | `-V` | Print version |
+| `--help` | `-h` | Print help |
+
+### Positional arguments
+
+Without `-r`: file glob patterns expanded by the program.
+With `-r`: directory paths (or directory globs) to search recursively.
+
+### Examples
+
+```bash
+# Summary only (default)
+ccs-viewer "data/*.jsonl"
+
+# Per-file list + summary
+ccs-viewer -l "data/*.jsonl"
+
+# Summary + error details
+ccs-viewer -e "data/*.jsonl"
+
+# Recursive search in a directory
+ccs-viewer -r .claude
+
+# Recursive with custom file patterns
+ccs-viewer -r --glob "*.jsonl" --glob "*.json" .claude
+
+# Multiple directories
+ccs-viewer -r .claude ../vc-x1/.claude
+
+# Directory glob
+ccs-viewer -r "../*/.claude"
+
+# All detail flags
+ccs-viewer -r -l -e -s .claude
+
+# Strict mode for CI
+ccs-viewer -r --strict .claude
+```
+
+### Example output
+
+```
+$ ccs-viewer -e -r .claude
+Errors:
+  2x unknown variant `summary` at line 1 column 17 in summary (abc.jsonl:1 in 2 file(s))
+  1x invalid type: null, expected a string in assistant (def.jsonl:1 in 1 file(s))
+
+Summary: 42 file(s), 1523 records, 3 errors, 2 skipped
+```
+
+### Output
+
+Output order: per-file list (if `-l`) → errors (if `-e`) → skipped
+files (if `-s`) → **summary** (always last).
+
+The **summary line** is always printed and always last:
+
+```
+Summary: <files> file(s), <records> records, <errors> errors[, <n> skipped]
+```
+
+| Field | Meaning |
+|-------|---------|
+| files | Number of files processed (excludes skipped files) |
+| records | Total successfully deserialized records |
+| errors | Total deserialization failures |
+| skipped | Files that failed the first-line sniff test (shown when non-zero) |
+
+### Exit codes
+
+- 0: success (default, even with deserialization errors)
+- 1: tool failure (bad args, can't open file, no files match)
+- 2: deserialization errors present (only with `--strict`)
+
+### First-line sniff test
+
+JSONL files are checked before processing: if the first line doesn't
+start with `{"type":` or `{"parentUuid":`, the file is skipped. This
+filters out non-Claude-Code JSONL files (benchmark logs, etc.) without
+relying on filename patterns. Use `-s` to see which files were skipped.
 
 ## jj Tips for Git Users
 

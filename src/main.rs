@@ -8,17 +8,33 @@ use clap::Parser;
 use ccs_viewer::types::{AgentMeta, Record};
 
 #[derive(Parser)]
-#[command(version, about = "Claude Code session JSONL viewer")]
+#[command(
+    version,
+    about = "Claude Code session JSONL viewer",
+    after_help = "\
+Output order: per-file list (-l) > errors (-e) > skipped (-s) > summary (always last).
+
+Summary line: <files> file(s), <records> records, <errors> errors[, <n> skipped]
+  files:   number of files processed (excludes skipped)
+  records: total successfully deserialized records
+  errors:  total deserialization failures
+  skipped: files that failed the first-line sniff test (shown when non-zero)
+
+Exit codes:
+  0  Success (default, even with deserialization errors)
+  1  Tool failure (bad args, can't open file, no files match)
+  2  Deserialization errors present (only with --strict)"
+)]
 struct Cli {
     /// File or directory glob patterns to process
     #[arg(required = true)]
     patterns: Vec<String>,
 
-    /// Show per-file summary lines
+    /// Show per-file summary lines (one line per file with record type counts)
     #[arg(short, long)]
     list: bool,
 
-    /// Show grouped error details
+    /// Show grouped error details (deduplicated by message, sorted by count)
     #[arg(short, long)]
     errors: bool,
 
@@ -26,9 +42,17 @@ struct Cli {
     #[arg(short, long)]
     recursive: bool,
 
-    /// File glob pattern for recursive mode (repeatable, default: *.jsonl)
+    /// File glob pattern for recursive mode (repeatable, default: *.jsonl, agent-*.meta.json)
     #[arg(long = "glob")]
     globs: Vec<String>,
+
+    /// Exit 2 if deserialization errors are present
+    #[arg(long)]
+    strict: bool,
+
+    /// Show files skipped by the first-line sniff test
+    #[arg(short, long)]
+    skipped: bool,
 }
 
 /// Resolve CLI patterns into a list of file paths.
@@ -178,6 +202,8 @@ fn main() {
 
     let mut total_records: usize = 0;
     let mut total_errors: usize = 0;
+    let mut total_skipped: usize = 0;
+    let mut skipped_files: Vec<String> = Vec::new();
     let mut error_groups: HashMap<ErrorKey, ErrorGroup> = HashMap::new();
 
     for (file_idx, path) in files.iter().enumerate() {
@@ -227,15 +253,36 @@ fn main() {
             continue;
         }
 
-        let reader = BufReader::new(file);
+        let mut reader = BufReader::new(file);
+
+        // First-line sniff test: skip .jsonl files that don't look like
+        // Claude Code sessions. CCS files start with {"type": or {"parentUuid":.
+        let mut first_line = String::new();
+        if reader.read_line(&mut first_line).unwrap_or(0) == 0 {
+            total_skipped += 1;
+            if cli.skipped {
+                skipped_files.push(path.display().to_string());
+            }
+            continue;
+        }
+        let trimmed = first_line.trim();
+        if !trimmed.starts_with("{\"type\":") && !trimmed.starts_with("{\"parentUuid\":") {
+            total_skipped += 1;
+            if cli.skipped {
+                skipped_files.push(path.display().to_string());
+            }
+            continue;
+        }
+
+        // Process lines starting from the first line we already read.
         let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
         let mut file_errors: usize = 0;
 
-        for (i, line) in reader.lines().enumerate() {
-            let line = line.unwrap_or_else(|e| {
-                eprintln!("Error reading line {}: {e}", i + 1);
-                std::process::exit(1);
-            });
+        // Process first line, then remaining lines.
+        let remaining_lines = reader.lines().map(|l| l.unwrap_or_default());
+        let all_lines = std::iter::once(first_line.trim_end().to_string()).chain(remaining_lines);
+
+        for (i, line) in all_lines.enumerate() {
             if line.trim().is_empty() {
                 continue;
             }
@@ -287,13 +334,10 @@ fn main() {
     }
 
     let file_count = files.len();
-    println!(
-        "{}Summary: {file_count} file(s), {total_records} records, {total_errors} errors",
-        if cli.list { "\n" } else { "" }
-    );
+    let processed = file_count - total_skipped;
 
     if cli.errors && !error_groups.is_empty() {
-        println!("\nErrors:");
+        println!("{}Errors:", if cli.list { "\n" } else { "" });
         let mut groups: Vec<_> = error_groups.into_iter().collect();
         groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
         for (key, group) in &groups {
@@ -307,9 +351,27 @@ fn main() {
                 group.file_count,
             );
         }
+        println!();
     }
 
-    if total_errors > 0 {
-        std::process::exit(1);
+    if cli.skipped && !skipped_files.is_empty() {
+        println!("Skipped:");
+        for f in &skipped_files {
+            println!("  {f}");
+        }
+        println!();
+    }
+
+    println!(
+        "Summary: {processed} file(s), {total_records} records, {total_errors} errors{}",
+        if total_skipped > 0 {
+            format!(", {total_skipped} skipped")
+        } else {
+            String::new()
+        },
+    );
+
+    if cli.strict && total_errors > 0 {
+        std::process::exit(2);
     }
 }

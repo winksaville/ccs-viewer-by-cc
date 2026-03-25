@@ -356,17 +356,31 @@ See [Chores format](README.md#chores-format)
     not agent meta files. Narrowed default glob from `*.meta.json` to
     `agent-*.meta.json` — eliminates 2115 false positives.
 
+  ### dev1.1: sniff test + exit code cleanup
+
+  First-line sniff test: skip .jsonl files whose first line doesn't
+  start with `{"type":` or `{"parentUuid":`. This eliminates non-CCS
+  files (benchmark logs, line2.jsonl, etc.) without relying on filename
+  patterns. Added `--skipped` / `-s` flag to list skipped files.
+
+  Exit code rework:
+  - 0: success (default, even with deserialization errors)
+  - 1: tool failure (bad args, can't open file, no files match)
+  - 2: deserialization errors present (only with `--strict`)
+
+  Summary line now shows skipped count when non-zero.
+
   ### Progress
 
   ```
-  Before (0.11.0): 5077 files, 137041 records, 7371 errors (12 categories)
-  dev1 (0.12.0):   2965 files, 140374 records, 2264 errors (6 categories)
+  Before (0.11.0):  5077 files, 137041 records,  7371 errors (12 categories)
+  dev1 (0.12.0):    2965 files, 140374 records,  2264 errors (6 categories)
+  dev1.1 (0.12.0):  2687 files, 140451 records,  2259 errors (5 categories), 278 skipped
   ```
 
-  Remaining errors (for dev1.1, dev2, dev3):
+  Remaining errors (for dev2, dev3):
   - 1475x null string in assistant
   - 689x unknown variant `summary`
   - 49x null string in system
   - 42x sequence in queue-operation content
-  - 5x non-CCS line2.jsonl (dev1.1 sniff test)
   - 4x malformed JSON (unfixable)
