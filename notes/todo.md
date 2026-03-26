@@ -11,7 +11,6 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
- - Label and indent -v,--valid like the others [26]
  - Add error test data and library tests for known-bad inputs [24]
  - Improve error output format (columnization, full paths) [25]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
@@ -43,6 +42,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - cli flag cleanup 0.12.0-dev3.2 [21]
  - Fix all deserialization errors 0.12.0 [22]
  - Replace serde_json::Value with Untyped and typed structs 0.13.0 [23]
+ - Label and indent -v,--valid like the others 0.13.1 [26]
 
 Keep [a] here for on going testing:
  - Test 3 leading number signs and one # embedded [a]

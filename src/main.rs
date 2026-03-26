@@ -41,7 +41,7 @@ struct Cli {
     #[arg(long = "glob")]
     globs: Vec<String>,
 
-    /// Show valid files (one line per file with record type counts)
+    /// Show valid files (filename + record type counts on two lines)
     #[arg(short, long, help_heading = "Summary detail flags")]
     valid: bool,
 
@@ -223,6 +223,7 @@ fn main() {
     let mut skipped_files: Vec<String> = Vec::new();
     let mut empty_files: Vec<String> = Vec::new();
     let mut error_groups: HashMap<ErrorKey, ErrorGroup> = HashMap::new();
+    let mut valid_header_printed = false;
 
     for (file_idx, path) in files.iter().enumerate() {
         let file = File::open(path).unwrap_or_else(|e| {
@@ -237,12 +238,25 @@ fn main() {
 
         // Handle .meta.json files as single-object JSON (not JSONL).
         if filename.ends_with(".meta.json") {
+            let metadata = file.metadata().ok();
+            if metadata.as_ref().is_some_and(|m| m.len() == 0) {
+                total_empty += 1;
+                if cli.zero {
+                    empty_files.push(path.display().to_string());
+                }
+                continue;
+            }
             let result: Result<AgentMeta, _> = serde_json::from_reader(file);
             match result {
                 Ok(_meta) => {
                     total_records += 1;
                     if cli.valid {
-                        println!("{filename}: agent-meta (ok)");
+                        if !valid_header_printed {
+                            println!("Valid:");
+                            valid_header_printed = true;
+                        }
+                        println!("  {}", path.display());
+                        println!("    agent-meta (ok)");
                     }
                 }
                 Err(e) => {
@@ -267,7 +281,12 @@ fn main() {
                         });
                     }
                     if cli.valid {
-                        println!("{filename}: agent-meta (error)");
+                        if !valid_header_printed {
+                            println!("Valid:");
+                            valid_header_printed = true;
+                        }
+                        println!("  {}", path.display());
+                        println!("    agent-meta (error)");
                     }
                 }
             }
@@ -348,6 +367,10 @@ fn main() {
         total_errors += file_errors;
 
         if cli.valid {
+            if !valid_header_printed {
+                println!("Valid:");
+                valid_header_printed = true;
+            }
             let mut parts = vec![
                 format!("errors: {file_errors}"),
                 format!("records: {file_total}"),
@@ -355,18 +378,23 @@ fn main() {
             for (label, count) in &counts {
                 parts.push(format!("{label}: {count}"));
             }
-            println!("{filename}: {}", parts.join(", "));
+            println!("  {}", path.display());
+            println!("    {}", parts.join(", "));
         }
     }
 
     let file_count = files.len();
     let processed = file_count - total_skipped - total_empty;
 
+    if valid_header_printed {
+        println!();
+    }
+
     let show_errors = cli.errors || cli.error_summary;
     if show_errors && !error_groups.is_empty() {
         if cli.error_summary {
             // -E: deduplicated summary grouped by message
-            println!("{}Error summary:", if cli.valid { "\n" } else { "" });
+            println!("Error summary:");
             let mut groups: Vec<_> = error_groups.iter().collect();
             groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
             for (key, group) in &groups {
@@ -385,14 +413,7 @@ fn main() {
         }
         if cli.errors {
             // -e: flat list of all error file:line paths
-            println!(
-                "{}Errors:",
-                if cli.valid && !cli.error_summary {
-                    "\n"
-                } else {
-                    ""
-                }
-            );
+            println!("Errors:");
             let mut all_hits: Vec<_> = error_groups.values().flat_map(|g| g.hits.iter()).collect();
             all_hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
             for hit in all_hits {

@@ -504,16 +504,20 @@ A line with the reference, which should goto the section above [1]
     `{trigger, preTokens}` — all fields made optional
   - `SystemRecord` gained `messageCount` (subtype `turn_duration`)
 
-## Label and indent -v,--valid like the others
+## Label and indent -v,--valid like the others (0.13.1)
 
 ```
 wink@3900x 26-03-26T20:50:28.127Z:~/data/prgs
 $ time ccs-viewer -r -e -E -s -z .
 Valid:
-  <xxxx>/agent-aside_question-259445bdfe6ce1af.jsonl: errors: 0, records: 291, assistant: 140, progress: 33, system: 5, user: 113
-  <xxxx>/979fd0fd-a10d-419e-9cc5-b911dc32dfd8.jsonl: errors: 0, records: 1567, assistant: 662, file-history-snapshot: 107, last-prompt: 1, progress: 259, queue-operation: 6, system: 24, user: 508
-  <xxxx>/agent-test.jsonl: errors: 0, records: 7, assistant: 3, progress: 1, system: 1, user: 2
-  <xxxx>/ccs-viewer-tests.jsonl: errors: 0, records: 19, assistant: 2, progress: 5, queue-operation: 1, summary: 1, system: 5, user: 5
+  <path>/agent-aside_question-259445bdfe6ce1af.jsonl
+    errors: 0, records: 291, assistant: 140, progress: 33, system: 5, user: 113
+  <path>/979fd0fd-a10d-419e-9cc5-b911dc32dfd8.jsonl
+    errors: 0, records: 1567, assistant: 662, file-history-snapshot: 107, last-prompt: 1, progress: 259, queue-operation: 6, system: 24, user: 508
+  <path>/agent-test.jsonl
+    errors: 0, records: 7, assistant: 3, progress: 1, system: 1, user: 2
+  <path>/ccs-viewer-tests.jsonl
+    errors: 0, records: 19, assistant: 2, progress: 5, queue-operation: 1, summary: 1, system: 5, user: 5
  
 Skipped:
   tests/rust-cpp-bench-starter/rust_cpp_bench_starter/data/line2.jsonl

@@ -36,7 +36,7 @@ By default, only the summary line is printed. Use flags for more detail.
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--valid` | `-v` | Show valid files (one line per file with record type counts) |
+| `--valid` | `-v` | Show valid files (path + record type counts on two lines) |
 | `--errors` | `-e` | Show error file paths with line numbers |
 | `--error-summary` | `-E` | Show deduplicated error summary (grouped by message, sorted by count) |
 | `--skipped` | `-s` | Show files that failed the first-line sniff test |
