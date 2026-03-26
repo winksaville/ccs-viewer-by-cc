@@ -11,10 +11,9 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
- - Fix remaining deserialization errors across ~/data/prgs (7371 → 0 errors) [15] — done
  - Replace serde_json::Value fields with typed structs or custom Opaque newtype [17]
- - Add first-line sniff test to skip non-CCS .jsonl files [16] — done
- - Add support for agent session files (agent-*.jsonl) [12] — done, see [13],[14]
+ - Add error test data and library tests for known-bad inputs [18]
+ - Improve error output formatting (columnize, full paths) [19]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
 
@@ -23,6 +22,8 @@ See [Foramt details](README.md#todo-format)
 Completed tasks are moved from `## Todo` to here, `## Done`, as they are completed
 and older `## Done` sections are moved to [done.md](done.md) to keep this file small.
 
+ - Fix remaining deserialization errors across ~/data/prgs (7371 → 0 errors, 0.12.0) [15]
+ - Add first-line sniff test, exit codes, CLI flag cleanup (0.12.0) [16]
  - Define serde structs for JSONL deserialization (0.1.0) [2]
  - Add queue-operation, system, custom-title, agent-name record types (0.2.0) [3]
  - Support text blocks in user content arrays (0.3.0) [5]
@@ -35,6 +36,8 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Add CLI flags: list, errors, recursive, glob (0.9.0) [11]
  - Add agent meta.json support (0.10.0) [13]
  - Add agentId to record structs for agent JSONL (0.11.0) [14]
+
+ - test 3 lb signs [20]
 
 # References
 
@@ -52,6 +55,9 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [12]: chores-01.md#add-support-for-agent-session-files
 [13]: chores-01.md#add-agent-metajson-support-20260324-0100
 [14]: chores-01.md#add-agentid-to-record-structs-for-agent-jsonl-20260324-0110
-[15]: chores-01.md#fix-remaining-deserialization-errors-across-all-sessions-20260325-0120
-[16]: chores-01.md#fix-remaining-deserialization-errors-across-all-sessions-20260325-0120
+[15]: chores-01.md#fix-remaining-deserialization-errors-0120
+[16]: chores-01.md#sniff-test-and-exit-code-cleanup-0120-dev11
 [17]: chores-01.md#replace-serdejsonvalue-with-typed-structs
+[18]: chores-01.md#add-error-test-data-and-library-tests
+[19]: chores-01.md#improve-error-output-formatting
+[20]: chores-01.md#test-3-lb-signs

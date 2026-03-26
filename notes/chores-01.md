@@ -298,13 +298,13 @@ See [Chores format](README.md#chores-format)
   Verified: 0 errors across 66 files in vc-x1/.claude and all local
   test data.
 
-## Fix remaining deserialization errors across all sessions (20260325 0.12.0)
+## Fix remaining deserialization errors (0.12.0)
 
   Running `ccs-viewer . -e -r` from `~/data/prgs` hits 5077 files,
   137k records, and 7371 errors (after removing 3 benchmark logs.jsonl
   files that accounted for ~60M false positives).
 
-  ### Error inventory (12 categories, 7371 total)
+  Error inventory (12 categories, 7371 total):
 
   **Simple field additions** (add as Option to existing structs):
   1. 2963x `thinkingMetadata` unknown in user (309 files)
@@ -315,29 +315,21 @@ See [Chores format](README.md#chores-format)
   6. 1x `error` unknown in system (1 file)
 
   **Type fixes** (field type mismatch):
-  7. 1475x null string in assistant (1475 files) — a required String
-     field is sometimes null; need sample data to identify which
-  8. 49x null string in system (43 files) — same issue
-  9. 42x sequence instead of string in queue-operation (21 files) —
-     `content` is sometimes an array; change Option<String> to Option<Value>
+  7. 1475x null string in assistant (1475 files)
+  8. 49x null string in system (43 files)
+  9. 42x sequence instead of string in queue-operation (21 files)
 
   **New variant:**
-  10. 689x unknown variant `summary` (250 files) — add Summary variant
+  10. 689x unknown variant `summary` (250 files)
 
   **Unfixable / out of scope:**
   11. 5x missing field `type` in line2.jsonl (2 files) — not CCS files
   12. 4x malformed JSON at column 1 (1 file) — corrupt data
 
-  ### Plan
+  Plan: dev0 → dev1 → dev1.1 → dev2 → dev2.1 → dev3 → dev3.1 →
+  dev3.2 → 0.12.0 final.
 
-  - dev0: version bump + this chores section
-  - dev1: simple field additions (#1–#6, ~5107 errors)
-  - dev1.1: first-line sniff test to skip non-CCS .jsonl files (#11)
-  - dev2: type fixes (#7–#9, ~1566 errors)
-  - dev3: new summary variant (#10, 689 errors)
-  - 0.12.0: final release, remove -devN
-
-  ### dev1: simple field additions
+## Add new optional fields (0.12.0-dev1)
 
   Added optional fields to existing structs:
   - `UserRecord`: `thinkingMetadata` (Value), `isVisibleInTranscriptOnly`
@@ -356,7 +348,7 @@ See [Chores format](README.md#chores-format)
     not agent meta files. Narrowed default glob from `*.meta.json` to
     `agent-*.meta.json` — eliminates 2115 false positives.
 
-  ### dev1.1: sniff test + exit code cleanup
+## Sniff test and exit code cleanup (0.12.0-dev1.1)
 
   First-line sniff test: skip .jsonl files whose first line doesn't
   start with `{"type":` or `{"parentUuid":`. This eliminates non-CCS
@@ -370,7 +362,7 @@ See [Chores format](README.md#chores-format)
 
   Summary line now shows skipped count when non-zero.
 
-  ### dev2: type fixes
+## Fix type mismatches in deser structs (0.12.0-dev2)
 
   Fixed type mismatches where fields had the wrong type:
 
@@ -386,20 +378,7 @@ See [Chores format](README.md#chores-format)
   - `logicalParentUuid`: Option<String>
   - `compactMetadata`: Option<Value>
 
-  ### Progress
-
-  ```
-  Before (0.11.0):  5077 files, 137041 records,  7371 errors (12 categories)
-  dev1 (0.12.0):    2965 files, 140374 records,  2264 errors (6 categories)
-  dev1.1 (0.12.0):  2687 files, 140451 records,  2259 errors (5 categories), 278 skipped
-  dev2 (0.12.0):    2689 files, 142333 records,   693 errors (2 categories), 278 skipped
-  ```
-
-  Remaining errors (for dev3):
-  - 689x unknown variant `summary` (250 files)
-  - 4x malformed JSON (unfixable)
-
-  ### dev2.1: add -E flag for error file paths
+## Add -E flag for error file paths (0.12.0-dev2.1)
 
   Added `-E`/`--error-files` flag: like `-e` but also lists all
   file paths (with line numbers) for each error group. Reworked
@@ -409,24 +388,37 @@ See [Chores format](README.md#chores-format)
 
   `-E` implies `-e` behavior — no need to pass both.
 
-  ### dev3: add summary record variant
+## Add summary record variant (0.12.0-dev3)
 
   Added `Summary` variant to the `Record` enum with a
   `SummaryRecord` struct: `summary` (String) and `leafUuid`
   (String). Summary records appear at the start or end of
   session files as a short description of the conversation.
 
-  ### Final progress
-
-  ### dev3.1: separate empty files from skipped
+## Separate empty files from skipped (0.12.0-dev3.1)
 
   Added `-z`/`--zero` flag to list empty (zero-length) files.
   Empty files are no longer counted in skipped — they are a
   distinct category with their own counter in the summary line.
 
+## CLI flag cleanup (0.12.0-dev3.2)
+
+  Swapped `-e` and `-E` flag semantics for consistency:
+  lowercase flags (`-e`, `-s`, `-z`) list individual file paths,
+  uppercase `-E` shows the deduplicated grouped summary.
+
+  Renamed `-l`/`--list` to `-v`/`--valid`. Renamed "empty" →
+  "zero-len" in summary and output headings. Grouped summary
+  detail flags in `--help`. Summary always shows all stats.
+
+## Progress (0.12.0)
+
   ```
   Before (0.11.0):  5077 files, 137041 records,  7371 errors
-  dev3.1 (0.12.0):   871 files, 122271 records,     0 errors, 2 skipped, 16 empty
+  dev1:             2965 files, 140374 records,  2264 errors
+  dev1.1:           2687 files, 140451 records,  2259 errors, 278 skipped
+  dev2:             2689 files, 142333 records,   693 errors, 278 skipped
+  Final (0.12.0):    871 files, 122271 records,     0 errors, 2 skipped, 16 zero-len
   ```
 
   File count dropped from ~5077 to ~871 due to:
@@ -434,19 +426,6 @@ See [Chores format](README.md#chores-format)
   - Sniff test (skips 2 non-CCS .jsonl files)
   - Zero-len files (16 zero-length .jsonl files)
   - Removed circular symlink in rlibc-x (user fix, not code)
-
-  ### dev3.2: swap -e/-E and rename empty to zero-len
-
-  Swapped `-e` and `-E` flag semantics for consistency:
-  lowercase flags (`-e`, `-s`, `-z`) list individual file paths,
-  uppercase `-E` shows the deduplicated grouped summary.
-
-  Renamed "empty" → "zero-len" in summary and output headings
-  to match the `-z`/`--zero` flag name.
-
-  Reworked summary line format:
-  `<total> total files, <valid> valid files with <records> records`
-  followed by optional zero-len, skipped, errors counts.
 
 ## Replace serde_json::Value with typed structs
 
@@ -473,3 +452,33 @@ See [Chores format](README.md#chores-format)
   If we go with a catch-all, prefer our own type over bare
   `serde_json::Value` so grep can find all untyped fields and
   we can add validation or logging in one place later.
+
+## Add error test data and library tests
+
+  Currently all test data in `data/` is valid. We need
+  intentionally-bad test data to verify error handling:
+
+  - `data/errs/` directory with small files that trigger each
+    error category (unknown variant, bad field type, etc.)
+  - Library tests that assert `is_err()` on known-bad data
+  - Prevents accidental "fixing" of errors we expect to reject
+
+  Prefer library tests (in `types::tests`) over integration
+  tests — the deser behavior is all in `lib.rs` and library
+  tests run with `cargo test` alongside existing tests.
+
+## Improve error output formatting
+
+  The `-e` and `-E` error output could be better:
+
+  - Columnize output: count | message | path:line aligned
+  - Always show full paths (currently done, but long messages
+    make the path hard to find)
+  - When `-e -E` are combined, show grouped summary with
+    file paths indented under each group (single combined view)
+  - Consider caching results for drill-down without re-scanning
+    (error IDs, `/tmp/ccs-viewer-cache-<uuid>.json`)
+
+### test 3 lb signs
+
+  A test line with 3 leading lb signs (###) to verify references work.
