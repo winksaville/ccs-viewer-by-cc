@@ -427,6 +427,47 @@ See [Chores format](README.md#chores-format)
   - Zero-len files (16 zero-length .jsonl files)
   - Removed circular symlink in rlibc-x (user fix, not code)
 
+## Experimented with Number Sign in headings (0.12.1)
+
+Using `#` in reference links to markdown section headers using a rule
+where the `#` is dropped but the surrounding spaces are converted to dashes
+does not work reliably, although it is working now on vscode and my Arch
+Linux desktop but not as well on my Android Pixel 10 pro phone!
+
+Here is a full URL: https://github.com/winksaville/ccs-viewer-by-cc/blob/main/notes/chores-01.md#test-3-leading-number-signs-and-one--embedded
+
+Here is the reference link: [1]
+
+lines to separate this and the next section:
+  - Line 1
+  - Line 2
+  - Line 3
+  - Line 4
+  - Line 5
+  - Line 6
+  - Line 7
+  - Line 8
+  - Line 9
+
+
+### Test 3 leading number signs and one # embedded
+
+lines to separate this and the reference below and the next section
+  - Line 1
+  - Line 2
+  - Line 3
+  - Line 4
+  - Line 5
+  - Line 6
+  - Line 7
+  - Line 8
+  - Line 9
+
+
+A line with the reference, which should goto the section above [1]
+
+[1]: chores-01.md#test-3-leading-number-signs-and-one--embedded
+
 ## Replace serde_json::Value with typed structs
 
   Several struct fields use `serde_json::Value` as a catch-all for
@@ -478,11 +519,3 @@ See [Chores format](README.md#chores-format)
     file paths indented under each group (single combined view)
   - Consider caching results for drill-down without re-scanning
     (error IDs, `/tmp/ccs-viewer-cache-<uuid>.json`)
-
-### test 3 leading number signs
-
-  A test line with 3 leading number signs (###) to verify references work.
-
-### test 3 leading number and one # embedded
-
-  Don't use # in headings, it cannot be referenced, AFAICT.

@@ -44,10 +44,10 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Fix all deserialization errors 0.12.0 [22]
  - Test 3 leading number signs [26]
 
- Neither 27 nor 28 are valid markdown reference so don't have # in headings.
- - Test 3 leading number signs and one # embedded [27],[28]
+Keep [a] here for on going testing:
+ - Test 3 leading number signs and one # embedded [a]
 
-# References
+[a]: chores-01.md#test-3-leading-number-signs-and-one--embedded
 
 [1]: chores-01.md#have-claude-code-design-a-claude-code-session-viewer
 [2]: chores-01.md#define-serde-structs-for-jsonl-deserialization-010
@@ -75,5 +75,3 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
 [24]: chores-01.md#add-error-test-data-and-library-tests
 [25]: chores-01.md#improve-error-output-format-columnization-full-paths
 [26]: chores-01.md#test-3-leading-number-signs
-[27]: chores-01.md#test-3-leading-number-signs-and-one-embedded
-[28]: chores-01.md#test-3-leading-number-signs-and-one--embedded
