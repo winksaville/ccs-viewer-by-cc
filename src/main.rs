@@ -392,27 +392,33 @@ fn main() {
 
     let show_errors = cli.errors || cli.error_summary;
     if show_errors && !error_groups.is_empty() {
-        if cli.error_summary {
-            // -E: deduplicated summary grouped by message
+        let mut groups: Vec<_> = error_groups.iter().collect();
+        groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
+
+        if cli.error_summary && cli.errors {
+            // -e -E combined: grouped summary with all paths nested
             println!("Error summary:");
-            let mut groups: Vec<_> = error_groups.iter().collect();
-            groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
+            for (key, group) in &groups {
+                println!("  {}x {} in {}", group.count, key.message, key.record_type,);
+                for hit in &group.hits {
+                    println!("    {}:{}", hit.path, hit.line);
+                }
+            }
+            println!();
+        } else if cli.error_summary {
+            // -E only: grouped summary, two lines per group
+            println!("Error summary:");
             for (key, group) in &groups {
                 let first = &group.hits[0];
+                println!("  {}x {} in {}", group.count, key.message, key.record_type,);
                 println!(
-                    "  {}x {} in {} ({}:{} in {} file(s))",
-                    group.count,
-                    key.message,
-                    key.record_type,
-                    first.path,
-                    first.line,
-                    group.file_count,
+                    "    {} file(s), first: {}:{}",
+                    group.file_count, first.path, first.line,
                 );
             }
             println!();
-        }
-        if cli.errors {
-            // -e: flat list of all error file:line paths
+        } else if cli.errors {
+            // -e only: flat list of all error file:line paths
             println!("Errors:");
             let mut all_hits: Vec<_> = error_groups.values().flat_map(|g| g.hits.iter()).collect();
             all_hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));

@@ -11,8 +11,6 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
- - Add error test data and library tests for known-bad inputs [24]
- - Improve error output format (columnization, full paths) [25]
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
 
@@ -43,6 +41,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Fix all deserialization errors 0.12.0 [22]
  - Replace serde_json::Value with Untyped and typed structs 0.13.0 [23]
  - Label and indent -v,--valid like the others 0.13.1 [26]
+ - Add error test data and improve error output 0.14.0 [24],[25]
 
 Keep [a] here for on going testing:
  - Test 3 leading number signs and one # embedded [a]

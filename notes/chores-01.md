@@ -549,28 +549,32 @@ sys	0m6.721s
 wink@3900x 26-03-26T20:57:01.709Z:~/data/prgs
 ```
 
-## Add error test data and library tests
+## Add error test data and library tests (0.14.0)
 
-  Currently all test data in `data/` is valid. We need
-  intentionally-bad test data to verify error handling:
+  Created `err-data/` directory (sibling to `data/`) with
+  intentionally-bad files that trigger each error category:
 
-  - `data/errs/` directory with small files that trigger each
-    error category (unknown variant, bad field type, etc.)
-  - Library tests that assert `is_err()` on known-bad data
-  - Prevents accidental "fixing" of errors we expect to reject
+  - `unknown-variant.jsonl` — unrecognized `type` value
+  - `unknown-field.jsonl` — extra field rejected by deny_unknown_fields
+  - `wrong-type.jsonl` — field has wrong JSON type (int vs string)
+  - `missing-field.jsonl` — required field absent
+  - `bad-json.jsonl` — malformed JSON
+  - `bad-meta.meta.json` — agent meta with unknown field
 
-  Prefer library tests (in `types::tests`) over integration
-  tests — the deser behavior is all in `lib.rs` and library
-  tests run with `cargo test` alongside existing tests.
+  Added 6 library tests (`err_*`) using `assert_record_err` and
+  `assert_meta_err` helpers. Tests verify `is_err()` on each file,
+  preventing accidental "fixing" of errors we expect to reject.
 
-## Improve error output format (columnization, full paths)
+## Improve error output format (0.14.0)
 
-  The `-e` and `-E` error output could be better:
+  Reformatted `-E` output to two lines per group (message on
+  first line, file info on second) for readability with long
+  error messages.
 
-  - Columnize output: count | message | path:line aligned
-  - Always show full paths (currently done, but long messages
-    make the path hard to find)
-  - When `-e -E` are combined, show grouped summary with
-    file paths indented under each group (single combined view)
-  - Consider caching results for drill-down without re-scanning
-    (error IDs, `/tmp/ccs-viewer-cache-<uuid>.json`)
+  When `-e -E` are combined, file paths are nested under each
+  group instead of showing two separate sections. Three distinct
+  modes:
+
+  - `-E` only: grouped summary with file count and first hit
+  - `-e` only: flat list of file:line paths
+  - `-e -E`: grouped summary with all paths nested under each group

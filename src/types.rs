@@ -856,4 +856,69 @@ mod tests {
             "Record variants not covered by test data: {missing:?}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Error tests — verify known-bad inputs are rejected
+    // -----------------------------------------------------------------------
+
+    const ERR_DATA_DIR: &str = "err-data";
+
+    fn assert_record_err(filename: &str) {
+        let path = format!("{ERR_DATA_DIR}/{filename}");
+        let content = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        for (i, line) in content.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            assert!(
+                serde_json::from_str::<Record>(line).is_err(),
+                "{path}:{} should fail to deserialize but succeeded",
+                i + 1,
+            );
+        }
+    }
+
+    fn assert_meta_err(filename: &str) {
+        let path = format!("{ERR_DATA_DIR}/{filename}");
+        let content = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        assert!(
+            serde_json::from_str::<AgentMeta>(&content).is_err(),
+            "{path} should fail to deserialize but succeeded",
+        );
+    }
+
+    #[test]
+    fn err_unknown_variant() {
+        assert_record_err("unknown-variant.jsonl");
+    }
+
+    #[test]
+    fn err_unknown_field() {
+        assert_record_err("unknown-field.jsonl");
+    }
+
+    #[test]
+    fn err_wrong_type() {
+        assert_record_err("wrong-type.jsonl");
+    }
+
+    #[test]
+    fn err_missing_field() {
+        assert_record_err("missing-field.jsonl");
+    }
+
+    #[test]
+    fn err_bad_json() {
+        assert_record_err("bad-json.jsonl");
+    }
+
+    #[test]
+    fn err_bad_deser() {
+        assert_record_err("bad-deser.jsonl");
+    }
+
+    #[test]
+    fn err_bad_meta() {
+        assert_meta_err("bad-meta.meta.json");
+    }
 }

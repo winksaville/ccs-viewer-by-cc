@@ -37,8 +37,9 @@ By default, only the summary line is printed. Use flags for more detail.
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--valid` | `-v` | Show valid files (path + record type counts on two lines) |
-| `--errors` | `-e` | Show error file paths with line numbers |
+| `--errors` | `-e` | Show error file paths with line numbers (or nest under groups with `-E`) |
 | `--error-summary` | `-E` | Show deduplicated error summary (grouped by message, sorted by count) |
+| `-e -E` | | Combined: grouped summary with all file paths nested under each group |
 | `--skipped` | `-s` | Show files that failed the first-line sniff test |
 | `--zero` | `-z` | Show zero-length files |
 
@@ -74,6 +75,9 @@ ccs-viewer -r "../*/.claude"
 # All detail flags
 ccs-viewer -r -v -e -s -z .claude
 
+# Pick up ALL files (including non-jsonl) — handy for spotting strays
+ccs-viewer -r -e -E -s -z --glob '*' ./data ./err-data
+
 # Strict mode for CI
 ccs-viewer -r --strict .claude
 ```
@@ -81,12 +85,57 @@ ccs-viewer -r --strict .claude
 ### Example output
 
 ```
-$ ccs-viewer -e -r .claude
-Errors:
-  2x unknown variant `summary` at line 1 column 17 in summary (abc.jsonl:1 in 2 file(s))
-  1x invalid type: null, expected a string in assistant (def.jsonl:1 in 1 file(s))
+$ ccs-viewer -E -r .claude
+Error summary:
+  2x unknown variant `summary` at line 1 column 17 in summary
+    2 file(s), first: abc.jsonl:1
+  1x invalid type: null, expected a string in assistant
+    1 file(s), first: def.jsonl:1
 
 Summary: 46 total files, 41 valid files with 1523 records, 2 zero-len, 3 skipped, 3 errors
+```
+
+When `-e` and `-E` are combined, file paths are nested under each group:
+
+```
+$ ccs-viewer -e -E -r .claude
+Error summary:
+  2x unknown variant `summary` at line 1 column 17 in summary
+    abc.jsonl:1
+    xyz.jsonl:5
+  1x invalid type: null, expected a string in assistant
+    def.jsonl:1
+
+Summary: 46 total files, 41 valid files with 1523 records, 2 zero-len, 3 skipped, 3 errors
+```
+
+Using `--glob '*'` to pick up all files (non-matching files appear as skipped):
+
+```
+$ ccs-viewer -e -E -s -z -r --glob '*' ./data ./err-data
+Error summary:
+  1x invalid type: string "not-a-bool", expected a boolean in user
+    err-data/bad-deser.jsonl:1
+  1x missing field `sessionId` in last-prompt
+    err-data/missing-field.jsonl:1
+  1x unknown variant `bogus`, expected one of `file-history-snapshot`, `user`, `assistant`, `progress`, `last-prompt`, `queue-operation`, `system`, `custom-title`, `agent-name`, `summary` at line 1 column 15 in bogus
+    err-data/unknown-variant.jsonl:1
+  1x unknown field `badField`, expected `agentType` or `description` at line 1 column 34 in agent-meta
+    err-data/bad-meta.meta.json:1
+  1x unknown field `extraField`, expected `lastPrompt` or `sessionId` in last-prompt
+    err-data/unknown-field.jsonl:1
+  1x invalid type: integer `123`, expected a string in last-prompt
+    err-data/wrong-type.jsonl:1
+
+Skipped:
+  err-data/bad-json.jsonl
+  err-data/hello.txt
+  err-data/non-json.json
+
+Zero-len:
+  data/agent-0-len.meta.json
+
+Summary: 18 total files, 14 valid files with 1036 records, 1 zero-len, 3 skipped, 6 errors
 ```
 
 ### Output
