@@ -29,7 +29,7 @@ See [Chores format](README.md#chores-format)
 
   Take a look at the file and let me know what you think
 
-## Define serde structs for JSONL deserialization (20260323 0.1.0)
+## Define serde structs for JSONL deserialization (0.1.0)
 
   Created `src/types.rs` with serde structs to deserialize all 5 JSONL record
   types from Claude Code session files:
@@ -51,7 +51,7 @@ See [Chores format](README.md#chores-format)
 
   Verified: all 22 lines of sample JSONL deserialize successfully.
 
-## Add new record type variants (20260323 0.2.0)
+## Add new record type variants (0.2.0)
 
   Added 4 new variants to the `Record` enum discovered in the larger session
   file `data/997afb98-...jsonl` (461 records):
@@ -64,7 +64,7 @@ See [Chores format](README.md#chores-format)
   Also updated the test to cover both data files (moved path from
   `hwr.claude/` to `data/`) and added the new variant labels to `main.rs`.
 
-## Refactor SessionMetadata
+## Refactor common metadata fields into a shared SessionMetadata struct
 
   Extract the 7 common metadata fields (`user_type`, `entrypoint`, `cwd`,
   `session_id`, `version`, `git_branch`, `slug`) repeated across
@@ -73,7 +73,7 @@ See [Chores format](README.md#chores-format)
   Make individual fields required `String` instead of `Option<String>` —
   they appear on every record in the data we have.
 
-## Support text blocks in user content arrays (20260323 0.3.0)
+## Support text blocks in user content arrays (0.3.0)
 
   User message content arrays can contain both `tool_result` and `text` blocks.
   Replaced `Vec<ToolResultBlock>` with `Vec<UserContentBlock>` where
@@ -83,7 +83,7 @@ See [Chores format](README.md#chores-format)
   Discovered in session file `data/092de687-...jsonl` (line 81) where a user
   follow-up text was interleaved with tool results in the same content array.
 
-## Make SystemRecord subtype-specific fields optional (20260323 0.4.0)
+## Make SystemRecord subtype-specific fields optional (0.4.0)
 
   `SystemRecord` has multiple subtypes (`turn_duration`, `local_command`) with
   different fields. Made `duration_ms` optional (only on `turn_duration`) and
@@ -92,7 +92,7 @@ See [Chores format](README.md#chores-format)
   Discovered in `data/86fb7a89-...jsonl` (2222 records) where `local_command`
   system records lacked `durationMs`.
 
-## Add clap CLI (20260323 0.5.0)
+## Add clap CLI (0.5.0)
 
   Switched from manual arg parsing to `clap` (derive). Gets `-V`/`--version`
   for free from Cargo.toml, proper `--help`, and multi-file argument support
@@ -102,7 +102,7 @@ See [Chores format](README.md#chores-format)
   variant label strings. Added `all_variants_covered` test that asserts every
   `Record` variant appears at least once across all test data files.
 
-## Add all-optional-fields-seen test (20260323 0.6.0)
+## Add all-optional-fields-seen test (0.6.0)
 
   Added `all_optional_fields_seen` test that verifies every `Option` field
   in every struct is `Some` at least once across test data. Each struct with
@@ -135,7 +135,7 @@ See [Chores format](README.md#chores-format)
   `container` and `context_management` are excluded from the optional_fields
   test list — always null in practice.
 
-## Compact single-line output with grouped errors (20260324 0.7.0)
+## Compact single-line output with grouped errors (0.7.0)
 
   Reformatted CLI output so each file produces a single summary line:
 
@@ -158,7 +158,7 @@ See [Chores format](README.md#chores-format)
   No more need to go to the file to identify the record type — it's
   right in the error line.
 
-## Add unknown fields from vc-x1 sessions (20260324 0.8.0)
+## Add unknown fields from vc-x1 sessions (0.8.0)
 
   Running `ccs-viewer` against `../vc-x1/.claude/*.jsonl` (25 files,
   ~11.8k records) surfaced 7 unknown fields across 345 errors.
@@ -201,7 +201,7 @@ See [Chores format](README.md#chores-format)
      - `ccs-viewer data/*.jsonl` (regression — 0 errors on local data)
   9. Update the checklist in this chore section.
 
-## Add CLI flags: list, errors, recursive, glob (20260324 0.9.0)
+## Add CLI flags: list, errors, recursive, glob (0.9.0)
 
   Rework CLI to default to summary-only output with opt-in detail.
   Add `glob` crate for program-side glob expansion (portable, no shell
@@ -256,7 +256,7 @@ See [Chores format](README.md#chores-format)
   currently cause ~10k deserialization errors across 28 files in
   vc-x1. Need to add record types for the agent session format.
 
-## Add agent meta.json support (20260324 0.10.0)
+## Add agent meta.json support (0.10.0)
 
   Added `AgentMeta` struct to parse `agent-*.meta.json` files — small
   standalone JSON files with `agentType` and `description` fields.
@@ -275,7 +275,7 @@ See [Chores format](README.md#chores-format)
   `agent-*.jsonl` files still need `agentId` fields added to the
   record structs (next task).
 
-## Add agentId to record structs for agent JSONL (20260324 0.11.0)
+## Add agentId to record structs for agent JSONL (0.11.0)
 
   Agent subagent JSONL files (`agent-*.jsonl`) have the same record
   format as main session files but include an `agentId` field on
@@ -411,7 +411,7 @@ See [Chores format](README.md#chores-format)
   "zero-len" in summary and output headings. Grouped summary
   detail flags in `--help`. Summary always shows all stats.
 
-## Progress (0.12.0)
+## Fix all deserialization-errors (0.12.0)
 
   ```
   Before (0.11.0):  5077 files, 137041 records,  7371 errors
@@ -467,7 +467,7 @@ See [Chores format](README.md#chores-format)
   tests — the deser behavior is all in `lib.rs` and library
   tests run with `cargo test` alongside existing tests.
 
-## Improve error output formatting
+## Improve error output format (columnization, full paths)
 
   The `-e` and `-E` error output could be better:
 
@@ -479,6 +479,10 @@ See [Chores format](README.md#chores-format)
   - Consider caching results for drill-down without re-scanning
     (error IDs, `/tmp/ccs-viewer-cache-<uuid>.json`)
 
-### test 3 lb signs
+### test 3 leading number signs
 
-  A test line with 3 leading lb signs (###) to verify references work.
+  A test line with 3 leading number signs (###) to verify references work.
+
+### test 3 leading number and one # embedded
+
+  Don't use # in headings, it cannot be referenced, AFAICT.
