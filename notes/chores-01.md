@@ -578,3 +578,21 @@ wink@3900x 26-03-26T20:57:01.709Z:~/data/prgs
   - `-E` only: grouped summary with file count and first hit
   - `-e` only: flat list of file:line paths
   - `-e -E`: grouped summary with all paths nested under each group
+
+## Try simd-json for performance (abandoned)
+
+Replaced `serde_json::from_str` with `simd_json::serde::from_str` on
+the hot path (JSONL line parsing) to test whether a faster JSON parser
+would improve `ccs-viewer -r` performance on large directory trees.
+
+Results on `~/data/prgs` (902 files, 124k records):
+- Cold (after `echo 3 > /proc/sys/vm/drop_caches`): 41.3s — same as serde_json
+- Warm: 12.1s — same as serde_json (baseline 12-13s)
+
+The bottleneck is filesystem I/O, not JSON parsing. Time breakdown
+shows ~5.7s user (CPU) vs ~7.3s sys (kernel/IO). simd-json requires
+`unsafe` blocks (it mutates the input buffer in-place) and added 28
+transitive dependencies for zero measurable gain. Not worth it.
+
+Better avenues for performance: parallel file processing (rayon),
+faster directory walking (jwalk or ignore crate).

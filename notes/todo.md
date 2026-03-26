@@ -11,6 +11,7 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
+ - Parallel file processing (rayon) and/or faster dir walking (jwalk/ignore)
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
 
@@ -42,6 +43,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Replace serde_json::Value with Untyped and typed structs 0.13.0 [23]
  - Label and indent -v,--valid like the others 0.13.1 [26]
  - Add error test data and improve error output 0.14.0 [24],[25]
+ - Try faster JSON parsing (json-steroids, simd-json) — abandoned, bottleneck is I/O not parsing [27]
 
 Keep [a] here for on going testing:
  - Test 3 leading number signs and one # embedded [a]
@@ -74,3 +76,4 @@ Keep [a] here for on going testing:
 [24]: chores-01.md#add-error-test-data-and-library-tests
 [25]: chores-01.md#improve-error-output-format-columnization-full-paths
 [26]: chores-01.md#label-and-indent--v--valid-like-the-others
+[27]: chores-01.md#try-simd-json-for-performance-abandoned
