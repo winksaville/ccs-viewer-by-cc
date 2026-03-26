@@ -35,8 +35,8 @@ For users new to jj see [jj-tips.md](jj-tips.md).
 Filename: "Chores-XX-.md"
 example: chores-01.md
 
-Format of section labels: "## <short description> (YYYYMMDD X.Y.Z)"
-example: "## Topic format description (20260322 0.1.0)"
+Format of section labels: "## <short description> (X.Y.Z)"
+example: "## Topic format description (0.1.0)"
 
 Example chore file:
 ```
@@ -46,7 +46,7 @@ General maintenance tasks and considerations for the project see other files for
 more specific topics. A chore in a chores file provides quick information on the
 how and why of a particular chore.
 
-## Do something (20260322 1.3.1)
+## Do something (1.3.1)
 
 Describe something
 ```

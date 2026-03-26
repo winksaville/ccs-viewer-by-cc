@@ -32,8 +32,17 @@
 //! silently goes untested. The separator comment in each struct serves as
 //! a reminder.
 
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use serde_json::Value;
+
+/// Wrapper for JSON data we haven't given a typed struct yet.
+/// Signals "structured but not yet typed" — distinguishes from
+/// deliberately modeled fields. Grep for `Untyped` to find all
+/// remaining untyped fields.
+#[derive(Debug, Deserialize)]
+pub struct Untyped(#[allow(dead_code)] Value);
 
 /// Top-level record: each line of a Claude Code session JSONL file
 /// deserializes into one of these variants, discriminated by the `type` field.
@@ -136,8 +145,16 @@ pub struct FileHistorySnapshotRecord {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Snapshot {
     pub message_id: String,
-    pub tracked_file_backups: Value,
+    pub tracked_file_backups: HashMap<String, FileBackupEntry>,
     pub timestamp: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct FileBackupEntry {
+    pub backup_file_name: Option<String>,
+    pub version: u64,
+    pub backup_time: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +175,7 @@ pub struct UserRecord {
     pub parent_uuid: Option<String>,
     pub prompt_id: Option<String>,
     pub permission_mode: Option<String>,
-    pub tool_use_result: Option<Value>,
+    pub tool_use_result: Option<Untyped>,
     #[serde(rename = "sourceToolAssistantUUID")]
     pub source_tool_assistant_uuid: Option<String>,
     pub user_type: Option<String>,
@@ -169,8 +186,8 @@ pub struct UserRecord {
     pub git_branch: Option<String>,
     pub slug: Option<String>,
     pub plan_content: Option<String>,
-    pub todos: Option<Value>,
-    pub thinking_metadata: Option<Value>,
+    pub todos: Option<Untyped>,
+    pub thinking_metadata: Option<ThinkingMetadata>,
     pub is_visible_in_transcript_only: Option<bool>,
     pub is_compact_summary: Option<bool>,
 }
@@ -241,7 +258,7 @@ pub enum UserContentBlock {
 #[serde(untagged)]
 pub enum ToolResultContent {
     Text(String),
-    Structured(Value),
+    Structured(Untyped),
 }
 
 // ---------------------------------------------------------------------------
@@ -321,8 +338,8 @@ pub struct AssistantMessage {
     // --- Option fields (listed in AssistantRecord::optional_fields) ---
     pub stop_reason: Option<String>,
     pub stop_sequence: Option<String>,
-    pub container: Option<Value>,
-    pub context_management: Option<Value>,
+    pub container: Option<Untyped>,
+    pub context_management: Option<Untyped>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -338,9 +355,9 @@ pub enum AssistantContentBlock {
     ToolUse {
         id: String,
         name: String,
-        input: Value,
+        input: Untyped,
         // --- Option field (listed in AssistantRecord::optional_fields) ---
-        caller: Option<Value>,
+        caller: Option<Caller>,
     },
 }
 
@@ -355,8 +372,8 @@ pub struct Usage {
     pub cache_creation: Option<CacheCreation>,
     pub service_tier: Option<String>,
     pub inference_geo: Option<String>,
-    pub server_tool_use: Option<Value>,
-    pub iterations: Option<Value>,
+    pub server_tool_use: Option<ServerToolUse>,
+    pub iterations: Option<Untyped>,
     pub speed: Option<String>,
 }
 
@@ -367,6 +384,48 @@ pub struct CacheCreation {
     pub ephemeral_5m_input_tokens: u64,
     #[serde(rename = "ephemeral_1h_input_tokens")]
     pub ephemeral_1h_input_tokens: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ServerToolUse {
+    pub web_search_requests: u64,
+    pub web_fetch_requests: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Caller {
+    #[serde(rename = "type")]
+    pub caller_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ThinkingMetadata {
+    // --- Option fields (all optional — two distinct shapes in the wild) ---
+    pub level: Option<String>,
+    pub disabled: Option<bool>,
+    pub triggers: Option<Vec<Untyped>>,
+    pub max_thinking_tokens: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct CompactMetadata {
+    // --- Option fields (two distinct shapes in the wild) ---
+    pub removed_messages: Option<u64>,
+    pub trigger: Option<String>,
+    pub pre_tokens: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ApiError {
+    pub status: u16,
+    pub headers: Untyped,
+    #[serde(rename = "requestID")]
+    pub request_id: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -444,8 +503,8 @@ pub struct ProgressData {
     pub hook_event: Option<String>,
     pub hook_name: Option<String>,
     pub command: Option<String>,
-    pub message: Option<Value>,
-    pub prompt: Option<Value>,
+    pub message: Option<Untyped>,
+    pub prompt: Option<String>,
     pub agent_id: Option<String>,
     pub query: Option<String>,
     pub result_count: Option<u64>,
@@ -456,7 +515,7 @@ pub struct ProgressData {
     pub timeout_ms: Option<u64>,
     pub total_bytes: Option<u64>,
     pub total_lines: Option<u64>,
-    pub normalized_messages: Option<Value>,
+    pub normalized_messages: Option<Untyped>,
     pub task_description: Option<String>,
     pub task_type: Option<String>,
 }
@@ -483,7 +542,7 @@ pub struct QueueOperationRecord {
     pub timestamp: String,
     pub session_id: String,
     // --- Option fields (add camelCase JSON name to optional_fields below) ---
-    pub content: Option<Value>,
+    pub content: Option<Untyped>,
 }
 
 // WARNING: When adding an Option field above, add its camelCase JSON name here.
@@ -519,9 +578,10 @@ pub struct SystemRecord {
     pub version: Option<String>,
     pub git_branch: Option<String>,
     pub slug: Option<String>,
-    pub error: Option<Value>,
+    pub error: Option<ApiError>,
     pub logical_parent_uuid: Option<String>,
-    pub compact_metadata: Option<Value>,
+    pub compact_metadata: Option<CompactMetadata>,
+    pub message_count: Option<u64>,
     pub retry_in_ms: Option<f64>,
     pub retry_attempt: Option<u64>,
     pub max_retries: Option<u64>,
@@ -548,6 +608,7 @@ impl SystemRecord {
             "error",
             "logicalParentUuid",
             "compactMetadata",
+            "messageCount",
             "retryInMs",
             "retryAttempt",
             "maxRetries",

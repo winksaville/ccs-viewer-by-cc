@@ -468,31 +468,82 @@ A line with the reference, which should goto the section above [1]
 
 [1]: chores-01.md#test-3-leading-number-signs-and-one--embedded
 
-## Replace serde_json::Value with typed structs
+## Replace serde_json::Value with typed structs (0.13.0)
 
-  Several struct fields use `serde_json::Value` as a catch-all for
-  JSON we haven't fully typed yet. This works but loses type safety
-  and doesn't catch schema changes via `deny_unknown_fields`.
+  Replaced all bare `serde_json::Value` fields with either typed
+  structs or the new `Untyped(Value)` newtype. `Value` is the only
+  external library type that was leaking into the domain model —
+  `Untyped` keeps the serde dependency internal and makes it easy
+  to grep for remaining untyped fields.
 
-  Fields currently using Value:
-  - `UserRecord`: thinkingMetadata, toolUseResult, todos
-  - `SystemRecord`: error, compactMetadata
-  - `ProgressData`: message, prompt, normalizedMessages,
-    serverToolUse, iterations
+  New typed structs:
+  - `FileBackupEntry` — trackedFileBackups map values
+  - `ServerToolUse` — web_search_requests, web_fetch_requests
+  - `Caller` — always `{"type":"direct"}`
+  - `ThinkingMetadata` — level, disabled, triggers
+  - `CompactMetadata` — removedMessages
+  - `ApiError` — status, headers, requestID
+
+  Fields changed to `String` (was `Value` but always a string):
+  - `ProgressData.prompt`
+
+  Fields changed to `Untyped` (genuinely polymorphic or unknown):
+  - `UserRecord`: toolUseResult, todos
+  - `AssistantMessage`: container, contextManagement
+  - `AssistantContentBlock::ToolUse`: input
+  - `Usage`: iterations
+  - `ProgressData`: message, normalizedMessages
   - `QueueOperationRecord`: content
-  - `AssistantRecord` nested: serverToolUse, iterations,
-    caller, container, contextManagement
+  - `ToolResultContent::Structured`
 
-  Options:
-  1. Typed structs per field — best safety, most work, risks
-     breakage on upstream schema changes
-  2. Custom `Opaque(Value)` newtype — signals "structured but
-     not yet typed", distinguishes from deliberately modeled
-     fields, can incrementally promote to real structs
+  Discoveries from wider dataset (123K records, 874 files):
+  - `FileBackupEntry.backupFileName` can be null — `Option<String>`
+  - `ThinkingMetadata` has two shapes: `{level, disabled, triggers}`
+    and `{maxThinkingTokens}` — all fields made optional
+  - `CompactMetadata` has two shapes: `{removedMessages}` and
+    `{trigger, preTokens}` — all fields made optional
+  - `SystemRecord` gained `messageCount` (subtype `turn_duration`)
 
-  If we go with a catch-all, prefer our own type over bare
-  `serde_json::Value` so grep can find all untyped fields and
-  we can add validation or logging in one place later.
+## Label and indent -v,--valid like the others
+
+```
+wink@3900x 26-03-26T20:50:28.127Z:~/data/prgs
+$ time ccs-viewer -r -e -E -s -z .
+Valid:
+  <xxxx>/agent-aside_question-259445bdfe6ce1af.jsonl: errors: 0, records: 291, assistant: 140, progress: 33, system: 5, user: 113
+  <xxxx>/979fd0fd-a10d-419e-9cc5-b911dc32dfd8.jsonl: errors: 0, records: 1567, assistant: 662, file-history-snapshot: 107, last-prompt: 1, progress: 259, queue-operation: 6, system: 24, user: 508
+  <xxxx>/agent-test.jsonl: errors: 0, records: 7, assistant: 3, progress: 1, system: 1, user: 2
+  <xxxx>/ccs-viewer-tests.jsonl: errors: 0, records: 19, assistant: 2, progress: 5, queue-operation: 1, summary: 1, system: 5, user: 5
+ 
+Skipped:
+  tests/rust-cpp-bench-starter/rust_cpp_bench_starter/data/line2.jsonl
+  tests/rust-cpp-bench-starter/rust_cpp_bench_starter/data/line3.jsonl
+
+Zero-len:
+  3dprinting/box-with-tri-hole/.claude/0f395ec2-1c7d-4a4d-a17f-f96e3bea5a46.jsonl
+  3dprinting/box-with-tri-hole/.claude/23b9b649-c71a-4147-be79-7c0704bfea56.jsonl
+  3dprinting/box-with-tri-hole/.claude/42263960-e9bc-4ced-b36f-a06b451915a4.jsonl
+  3dprinting/box-with-tri-hole/.claude/64b45d85-ecae-459d-ab3f-5615a461bfff.jsonl
+  3dprinting/box-with-tri-hole/.claude/69c9b83e-349a-4942-95d7-50e0daa6b6b1.jsonl
+  3dprinting/box-with-tri-hole/.claude/78e11641-a2a0-4ce6-be23-6091f75bff22.jsonl
+  3dprinting/box-with-tri-hole/.claude/7b05bf60-e1a2-4ee6-a870-c38e0a92222f.jsonl
+  3dprinting/box-with-tri-hole/.claude/7c815dbb-9fa1-437e-bb1a-cb38b822f1dd.jsonl
+  3dprinting/box-with-tri-hole/.claude/86e8c168-2014-4b0f-8696-193ef5fa4f5a.jsonl
+  3dprinting/box-with-tri-hole/.claude/9e73ce97-c997-4168-9941-cec18e8bf56c.jsonl
+  3dprinting/box-with-tri-hole/.claude/befdaa82-db84-4d2c-91a9-1703ae755afc.jsonl
+  3dprinting/box-with-tri-hole/.claude/de6e76d2-e58c-472e-8126-a12e2d8ae254.jsonl
+  3dprinting/box-with-tri-hole/.claude/fed02f22-94f2-4c1f-9a3e-a2a967d05474.jsonl
+  rust/rlibc-x/.claude/00abe525-b9b1-4ca6-9ded-16c1f036c463.jsonl
+  rust/rlibc-x/.claude/7980f50c-d27d-4d0e-befe-2d0a02888977.jsonl
+  rust/rlibc-x/.claude/b57023b9-6734-4c12-8f9d-e66143a1a31c.jsonl
+
+Summary: 892 total files, 874 valid files with 123252 records, 16 zero-len, 2 skipped, 0 errors
+
+real	0m12.017s
+user	0m5.218s
+sys	0m6.721s
+wink@3900x 26-03-26T20:57:01.709Z:~/data/prgs
+```
 
 ## Add error test data and library tests
 
