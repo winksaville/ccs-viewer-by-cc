@@ -26,16 +26,21 @@ By default, only the summary line is printed. Use flags for more detail.
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--list` | `-l` | Show per-file summary lines (one line per file with record type counts) |
-| `--errors` | `-e` | Show grouped error details (deduplicated by message, sorted by count) |
-| `--error-files` | `-E` | Like `-e` but also lists full file paths per error group |
 | `--recursive` | `-r` | Treat positional args as directories, search recursively |
 | `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`, `agent-*.meta.json`) |
 | `--strict` | | Exit 2 if deserialization errors are present |
-| `--skipped` | `-s` | Show files that failed the first-line sniff test |
-| `--zero` | `-z` | Show empty (zero-length) files |
 | `--version` | `-V` | Print version |
 | `--help` | `-h` | Print help |
+
+**Summary detail flags** (output order is fixed regardless of flag order):
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--valid` | `-v` | Show valid files (one line per file with record type counts) |
+| `--errors` | `-e` | Show error file paths with line numbers |
+| `--error-summary` | `-E` | Show deduplicated error summary (grouped by message, sorted by count) |
+| `--skipped` | `-s` | Show files that failed the first-line sniff test |
+| `--zero` | `-z` | Show zero-length files |
 
 ### Positional arguments
 
@@ -49,7 +54,7 @@ With `-r`: directory paths (or directory globs) to search recursively.
 ccs-viewer "data/*.jsonl"
 
 # Per-file list + summary
-ccs-viewer -l "data/*.jsonl"
+ccs-viewer -v "data/*.jsonl"
 
 # Summary + error details
 ccs-viewer -e "data/*.jsonl"
@@ -67,7 +72,7 @@ ccs-viewer -r .claude ../vc-x1/.claude
 ccs-viewer -r "../*/.claude"
 
 # All detail flags
-ccs-viewer -r -l -e -s .claude
+ccs-viewer -r -v -e -s -z .claude
 
 # Strict mode for CI
 ccs-viewer -r --strict .claude
@@ -81,28 +86,29 @@ Errors:
   2x unknown variant `summary` at line 1 column 17 in summary (abc.jsonl:1 in 2 file(s))
   1x invalid type: null, expected a string in assistant (def.jsonl:1 in 1 file(s))
 
-Summary: 46 total files, 42 valid files with 1523 records, 2 empty, 2 skipped, 3 errors
+Summary: 46 total files, 41 valid files with 1523 records, 2 zero-len, 3 skipped, 3 errors
 ```
 
 ### Output
 
-Output order: per-file list (if `-l`) → errors (if `-e`/`-E`) → skipped
-files (if `-s`) → empty files (if `-z`) → **summary** (always last).
+Output is always in this fixed order regardless of flag order:
+valid files (if `-v`) → errors (if `-e`/`-E`) → skipped files (if `-s`)
+→ zero-len files (if `-z`) → **summary** (always last).
 
 The **summary line** is always printed and always last:
 
 ```
-Summary: <total> total files, <valid> valid files with <records> records[, <n> empty][, <n> skipped][, <n> errors]
+Summary: <total> total files, <valid> valid files with <records> records, <n> zero-len, <n> skipped, <n> errors
 ```
 
 | Field | Meaning |
 |-------|---------|
 | total | All files found by glob/recursive search |
-| valid | Files successfully processed (total minus empty and skipped) |
+| valid | Files successfully processed (total minus zero-len and skipped) |
 | records | Total successfully deserialized records (in valid files) |
-| empty | Zero-length files (shown when non-zero) |
-| skipped | Files that failed the first-line sniff test (shown when non-zero) |
-| errors | Total deserialization failures (shown when non-zero) |
+| zero-len | Zero-length files |
+| skipped | Files that failed the first-line sniff test |
+| errors | Total deserialization failures |
 
 ### Exit codes
 

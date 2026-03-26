@@ -432,8 +432,21 @@ See [Chores format](README.md#chores-format)
   File count dropped from ~5077 to ~871 due to:
   - Narrowed meta glob (eliminated ~2100 mypy cache files)
   - Sniff test (skips 2 non-CCS .jsonl files)
-  - Empty files (16 zero-length .jsonl files)
+  - Zero-len files (16 zero-length .jsonl files)
   - Removed circular symlink in rlibc-x (user fix, not code)
+
+  ### dev3.2: swap -e/-E and rename empty to zero-len
+
+  Swapped `-e` and `-E` flag semantics for consistency:
+  lowercase flags (`-e`, `-s`, `-z`) list individual file paths,
+  uppercase `-E` shows the deduplicated grouped summary.
+
+  Renamed "empty" → "zero-len" in summary and output headings
+  to match the `-z`/`--zero` flag name.
+
+  Reworked summary line format:
+  `<total> total files, <valid> valid files with <records> records`
+  followed by optional zero-len, skipped, errors counts.
 
 ## Replace serde_json::Value with typed structs
 

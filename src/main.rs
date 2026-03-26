@@ -12,15 +12,16 @@ use ccs_viewer::types::{AgentMeta, Record};
     version,
     about = "Claude Code session JSONL viewer",
     after_help = "\
-Output order: per-file list (-l) > errors (-e/-E) > skipped (-s) > empty (-z) > summary (always last).
+Output is always in this fixed order regardless of flag order:
+  valid (-v) > errors (-e/-E) > skipped (-s) > zero-len (-z) > summary (always last)
 
-Summary: <total> total files, <valid> valid files with <records> records[, <n> empty][, <n> skipped][, <n> errors]
-  total:   all files found by glob/recursive search
-  valid:   files successfully processed (total minus empty and skipped)
-  records: total successfully deserialized records (in valid files)
-  empty:   zero-length files (shown when non-zero)
-  skipped: files that failed the first-line sniff test (shown when non-zero)
-  errors:  total deserialization failures (shown when non-zero)
+Summary: <total> total files, <valid> valid files with <records> records, <n> zero-len, <n> skipped, <n> errors
+  total:    all files found by glob/recursive search
+  valid:    files successfully processed (total minus zero-len and skipped)
+  records:  total successfully deserialized records (in valid files)
+  zero-len: zero-length files
+  skipped:  files that failed the first-line sniff test
+  errors:   total deserialization failures
 
 Exit codes:
   0  Success (default, even with deserialization errors)
@@ -32,18 +33,6 @@ struct Cli {
     #[arg(required = true)]
     patterns: Vec<String>,
 
-    /// Show per-file summary lines (one line per file with record type counts)
-    #[arg(short, long)]
-    list: bool,
-
-    /// Show grouped error details (deduplicated by message, sorted by count)
-    #[arg(short, long)]
-    errors: bool,
-
-    /// Show error details with full file paths for each error group
-    #[arg(short = 'E', long)]
-    error_files: bool,
-
     /// Recursively search directories for matching files
     #[arg(short, long)]
     recursive: bool,
@@ -52,17 +41,29 @@ struct Cli {
     #[arg(long = "glob")]
     globs: Vec<String>,
 
+    /// Show valid files (one line per file with record type counts)
+    #[arg(short, long, help_heading = "Summary detail flags")]
+    valid: bool,
+
+    /// Show error file paths with line numbers
+    #[arg(short, long, help_heading = "Summary detail flags")]
+    errors: bool,
+
+    /// Show deduplicated error summary (grouped by message, sorted by count)
+    #[arg(short = 'E', long, help_heading = "Summary detail flags")]
+    error_summary: bool,
+
+    /// Show files skipped by the first-line sniff test
+    #[arg(short, long, help_heading = "Summary detail flags")]
+    skipped: bool,
+
+    /// Show zero-length files
+    #[arg(short, long, help_heading = "Summary detail flags")]
+    zero: bool,
+
     /// Exit 2 if deserialization errors are present
     #[arg(long)]
     strict: bool,
-
-    /// Show files skipped by the first-line sniff test
-    #[arg(short, long)]
-    skipped: bool,
-
-    /// Show empty (zero-length) files
-    #[arg(short, long)]
-    zero: bool,
 }
 
 /// Resolve CLI patterns into a list of file paths.
@@ -240,7 +241,7 @@ fn main() {
             match result {
                 Ok(_meta) => {
                     total_records += 1;
-                    if cli.list {
+                    if cli.valid {
                         println!("{filename}: agent-meta (ok)");
                     }
                 }
@@ -265,7 +266,7 @@ fn main() {
                             line: 1,
                         });
                     }
-                    if cli.list {
+                    if cli.valid {
                         println!("{filename}: agent-meta (error)");
                     }
                 }
@@ -346,7 +347,7 @@ fn main() {
         total_records += file_total;
         total_errors += file_errors;
 
-        if cli.list {
+        if cli.valid {
             let mut parts = vec![
                 format!("errors: {file_errors}"),
                 format!("records: {file_total}"),
@@ -361,24 +362,44 @@ fn main() {
     let file_count = files.len();
     let processed = file_count - total_skipped - total_empty;
 
-    let show_errors = cli.errors || cli.error_files;
+    let show_errors = cli.errors || cli.error_summary;
     if show_errors && !error_groups.is_empty() {
-        println!("{}Errors:", if cli.list { "\n" } else { "" });
-        let mut groups: Vec<_> = error_groups.into_iter().collect();
-        groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
-        for (key, group) in &groups {
-            let first = &group.hits[0];
-            println!(
-                "  {}x {} in {} ({}:{} in {} file(s))",
-                group.count, key.message, key.record_type, first.path, first.line, group.file_count,
-            );
-            if cli.error_files {
-                for hit in &group.hits {
-                    println!("    {}:{}", hit.path, hit.line);
-                }
+        if cli.error_summary {
+            // -E: deduplicated summary grouped by message
+            println!("{}Error summary:", if cli.valid { "\n" } else { "" });
+            let mut groups: Vec<_> = error_groups.iter().collect();
+            groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
+            for (key, group) in &groups {
+                let first = &group.hits[0];
+                println!(
+                    "  {}x {} in {} ({}:{} in {} file(s))",
+                    group.count,
+                    key.message,
+                    key.record_type,
+                    first.path,
+                    first.line,
+                    group.file_count,
+                );
             }
+            println!();
         }
-        println!();
+        if cli.errors {
+            // -e: flat list of all error file:line paths
+            println!(
+                "{}Errors:",
+                if cli.valid && !cli.error_summary {
+                    "\n"
+                } else {
+                    ""
+                }
+            );
+            let mut all_hits: Vec<_> = error_groups.values().flat_map(|g| g.hits.iter()).collect();
+            all_hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
+            for hit in all_hits {
+                println!("  {}:{}", hit.path, hit.line);
+            }
+            println!();
+        }
     }
 
     if cli.skipped && !skipped_files.is_empty() {
@@ -390,7 +411,7 @@ fn main() {
     }
 
     if cli.zero && !empty_files.is_empty() {
-        println!("Empty:");
+        println!("Zero-len:");
         for f in &empty_files {
             println!("  {f}");
         }
@@ -398,18 +419,8 @@ fn main() {
     }
 
     let total_files = processed + total_skipped + total_empty;
-    let mut suffix = String::new();
-    if total_empty > 0 {
-        suffix.push_str(&format!(", {total_empty} empty"));
-    }
-    if total_skipped > 0 {
-        suffix.push_str(&format!(", {total_skipped} skipped"));
-    }
-    if total_errors > 0 {
-        suffix.push_str(&format!(", {total_errors} errors"));
-    }
     println!(
-        "Summary: {total_files} total files, {processed} valid files with {total_records} records{suffix}"
+        "Summary: {total_files} total files, {processed} valid files with {total_records} records, {total_empty} zero-len, {total_skipped} skipped, {total_errors} errors"
     );
 
     if cli.strict && total_errors > 0 {
