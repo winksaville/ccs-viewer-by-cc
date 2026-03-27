@@ -100,3 +100,67 @@ Cross-reference sessions with git history via ochid trailers:
 Recommendation: Phase 1 first (immediately useful, small delta),
 then Phase 2 with ratatui (TUI fits session-browsing well, keeps
 the tool lightweight). GUI frameworks for Phase 3+ if needed.
+
+## Phase 1 plan: CLI transcript (0.16.0)
+
+Start small: display just `user` and `assistant` records from a
+single session file. This is the minimum needed to read a
+conversation.
+
+### Scope
+
+Add a `--show` flag. When given, instead of the validation summary,
+print a readable transcript of the conversation. Operates on a
+single file (first positional arg; error if multiple files with
+`--show`).
+
+### Record types displayed
+
+1. **user** — show `message.content`:
+   - If plain text string: print it directly
+   - If content blocks: print `text` blocks inline, summarize
+     `tool_result` blocks as `[tool_result]`
+
+2. **assistant** — show `message.content` blocks:
+   - `text` blocks: print inline
+   - `tool_use` blocks: one-liner `[tool: <name>]`
+   - `thinking` blocks: skip (future flag `--thinking` to show)
+
+All other record types (progress, system, file-history-snapshot,
+queue-operation, custom-title, agent-name, summary) are silently
+skipped in this first pass.
+
+### Output format
+
+Simple, no color in the first cut. Color can come in a follow-up.
+
+```
+--- user ---
+reqaquaint
+
+--- assistant ---
+Let me look at the project structure.
+[tool: Read Cargo.toml]
+[tool: Glob **/*.rs]
+
+--- user ---
+[tool_result]
+
+--- assistant ---
+This is a Rust project with the following structure...
+```
+
+### Implementation steps
+
+1. Add `--show` flag to Cli struct (conflicts with `-v`, `-e`, etc.)
+2. In main, when `--show` is set: parse the file, iterate records,
+   print user/assistant content per the format above
+3. Add a test with existing test data verifying output shape
+
+### What this defers
+
+- Color / ANSI formatting
+- Thinking block display
+- Progress / system / other record types
+- Pager integration
+- Multi-file support with `--show`

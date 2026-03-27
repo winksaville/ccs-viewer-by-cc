@@ -5,13 +5,13 @@ and reference links to more details.
 
 ## In Progress
 
+ - Phase 1: CLI transcript mode — display user/assistant conversation [28]
+
 ## Todo
 
 A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
-
- - Phase 1: CLI transcript mode — display user/assistant conversation [28]
  - Parallel file processing (rayon) and/or faster dir walking (jwalk/ignore)
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
