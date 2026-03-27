@@ -28,6 +28,7 @@ By default, only the summary line is printed. Use flags for more detail.
 |------|-------|-------------|
 | `--recursive` | `-r` | Treat positional args as directories, search recursively |
 | `--glob <PAT>` | | File pattern for recursive mode (repeatable, default: `*.jsonl`, `agent-*.meta.json`) |
+| `--show` | | Display session transcript (user/assistant conversation, single file only) |
 | `--strict` | | Exit 2 if deserialization errors are present |
 | `--version` | `-V` | Print version |
 | `--help` | `-h` | Print help |
@@ -80,6 +81,9 @@ ccs-viewer -r -e -E -s -z --glob '*' ./data ./err-data
 
 # Strict mode for CI
 ccs-viewer -r --strict .claude
+
+# Display a session transcript
+ccs-viewer --show path/to/session.jsonl
 ```
 
 ### Example output

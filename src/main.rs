@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 
 use clap::Parser;
 
-use ccs_viewer::types::{AgentMeta, Record};
+use ccs_viewer::types::{AgentMeta, AssistantContentBlock, Record, UserContent, UserContentBlock};
 
 #[derive(Parser)]
 #[command(
@@ -64,6 +64,10 @@ struct Cli {
     /// Exit 2 if deserialization errors are present
     #[arg(long)]
     strict: bool,
+
+    /// Display session transcript (user/assistant conversation)
+    #[arg(long)]
+    show: bool,
 }
 
 /// Resolve CLI patterns into a list of file paths.
@@ -207,6 +211,124 @@ struct ErrorGroup {
     hits: Vec<ErrorHit>,
 }
 
+/// Stats returned by `show_transcript`.
+#[derive(Debug, PartialEq)]
+struct ShowStats {
+    shown: usize,
+    thinking_only: usize,
+    thinking_empty: usize,
+    skipped: usize,
+    parse_errors: usize,
+}
+
+/// Render a session transcript to `out`, returning stats.
+fn show_transcript_to(reader: impl BufRead, out: &mut impl std::io::Write) -> ShowStats {
+    let mut stats = ShowStats {
+        shown: 0,
+        thinking_only: 0,
+        thinking_empty: 0,
+        skipped: 0,
+        parse_errors: 0,
+    };
+
+    for line in reader.lines() {
+        let line = line.unwrap_or_default();
+        if line.trim().is_empty() {
+            continue;
+        }
+        let record: Record = match serde_json::from_str(&line) {
+            Ok(r) => r,
+            Err(_) => {
+                stats.parse_errors += 1;
+                continue;
+            }
+        };
+        match record {
+            Record::User(user_rec) => {
+                if stats.shown > 0 {
+                    writeln!(out, "---------").unwrap();
+                }
+                writeln!(out, "--- user ---").unwrap();
+                match user_rec.message.content {
+                    UserContent::Text(text) => writeln!(out, "{text}").unwrap(),
+                    UserContent::Blocks(blocks) => {
+                        for block in blocks {
+                            match block {
+                                UserContentBlock::Text { text } => {
+                                    writeln!(out, "{text}").unwrap();
+                                }
+                                UserContentBlock::ToolResult { .. } => {
+                                    writeln!(out, "[tool_result]").unwrap();
+                                }
+                            }
+                        }
+                    }
+                }
+                stats.shown += 1;
+            }
+            Record::Assistant(asst_rec) => {
+                // Collect visible content; skip records with only thinking blocks.
+                let mut lines = Vec::new();
+                let mut has_thinking = false;
+                let mut has_empty_thinking = false;
+                for block in &asst_rec.message.content {
+                    match block {
+                        AssistantContentBlock::Text { text } => lines.push(text.clone()),
+                        AssistantContentBlock::ToolUse { name, .. } => {
+                            lines.push(format!("[tool: {name}]"));
+                        }
+                        AssistantContentBlock::Thinking { thinking, .. } => {
+                            has_thinking = true;
+                            if thinking.is_empty() {
+                                has_empty_thinking = true;
+                            }
+                        }
+                    }
+                }
+                if has_thinking && has_empty_thinking {
+                    stats.thinking_empty += 1;
+                }
+                if lines.is_empty() {
+                    stats.thinking_only += 1;
+                    continue;
+                }
+                if stats.shown > 0 {
+                    writeln!(out, "---------").unwrap();
+                }
+                writeln!(out, "--- assistant ---").unwrap();
+                for line in &lines {
+                    writeln!(out, "{line}").unwrap();
+                }
+                stats.shown += 1;
+            }
+            _ => {
+                stats.skipped += 1;
+            }
+        }
+    }
+
+    stats
+}
+
+/// Display a session transcript to stdout.
+fn show_transcript(path: &PathBuf) {
+    let file = File::open(path).unwrap_or_else(|e| {
+        eprintln!("Error opening {}: {e}", path.display());
+        std::process::exit(1);
+    });
+    let reader = BufReader::new(file);
+    let mut out = std::io::stdout().lock();
+    let stats = show_transcript_to(reader, &mut out);
+
+    writeln!(out).unwrap();
+    writeln!(
+        out,
+        "Show summary: {} shown, {} thinking-only ({} empty), {} skipped, {} errors",
+        stats.shown, stats.thinking_only, stats.thinking_empty, stats.skipped, stats.parse_errors
+    )
+    .unwrap();
+}
+
 fn main() {
     let cli = Cli::parse();
     let files = resolve_files(&cli);
@@ -214,6 +336,15 @@ fn main() {
     if files.is_empty() {
         eprintln!("No files to process");
         std::process::exit(1);
+    }
+
+    if cli.show {
+        if files.len() > 1 {
+            eprintln!("--show requires a single file, got {}", files.len());
+            std::process::exit(1);
+        }
+        show_transcript(&files[0]);
+        return;
     }
 
     let mut total_records: usize = 0;
@@ -452,5 +583,77 @@ fn main() {
 
     if cli.strict && total_errors > 0 {
         std::process::exit(2);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    fn show(path: &str) -> (String, ShowStats) {
+        let file = File::open(path).expect("test file should exist");
+        let reader = BufReader::new(file);
+        let mut buf = Vec::new();
+        let stats = show_transcript_to(reader, &mut buf);
+        (String::from_utf8(buf).unwrap(), stats)
+    }
+
+    #[test]
+    fn show_basic_conversation() {
+        let (out, stats) = show("data/31ba272b-f7c2-436b-a017-269e27a64d07.jsonl");
+        assert_eq!(stats.shown, 15);
+        assert_eq!(stats.thinking_only, 1);
+        assert_eq!(stats.thinking_empty, 1);
+        assert_eq!(stats.skipped, 6);
+        assert_eq!(stats.parse_errors, 0);
+        assert!(out.contains("--- user ---\nreqaquaint"));
+        assert!(out.contains("[tool: Bash]"));
+        assert!(out.contains("[tool_result]"));
+    }
+
+    #[test]
+    fn show_nonempty_thinking() {
+        let (_, stats) = show("data/ccs-viewer-tests.jsonl");
+        assert_eq!(stats.thinking_only, 1);
+        assert_eq!(stats.thinking_empty, 0);
+    }
+
+    #[test]
+    fn show_mixed_errors() {
+        let (out, stats) = show("err-data/show-mixed.jsonl");
+        assert_eq!(stats.shown, 3);
+        assert_eq!(stats.parse_errors, 2);
+        assert_eq!(stats.skipped, 0);
+        assert!(out.contains("--- user ---\nhello\n"));
+        assert!(out.contains("--- assistant ---\nHi there!\n"));
+        assert!(out.contains("--- user ---\ngoodbye\n"));
+    }
+
+    #[test]
+    fn show_all_errors() {
+        let (out, stats) = show("err-data/bad-json.jsonl");
+        assert_eq!(stats.shown, 0);
+        assert_eq!(stats.parse_errors, 1);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn show_empty_input() {
+        let reader = Cursor::new(b"");
+        let mut buf = Vec::new();
+        let stats = show_transcript_to(reader, &mut buf);
+        assert_eq!(stats.shown, 0);
+        assert_eq!(stats.parse_errors, 0);
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn show_separator_between_records() {
+        let (out, stats) = show("err-data/show-mixed.jsonl");
+        assert_eq!(stats.shown, 3);
+        // Separator appears between records but not before the first
+        assert!(out.starts_with("--- user ---\n"));
+        assert_eq!(out.matches("---------").count(), 2);
     }
 }

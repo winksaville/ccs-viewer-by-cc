@@ -164,3 +164,24 @@ This is a Rust project with the following structure...
 - Progress / system / other record types
 - Pager integration
 - Multi-file support with `--show`
+
+## Add --show flag for CLI transcript (0.16.0-dev1)
+
+Implemented the `--show` flag per the Phase 1 plan above.
+
+- Added `--show` flag to Cli struct
+- `show_transcript()` function reads a single JSONL file and prints
+  user/assistant records as a readable conversation
+- User records: plain text printed directly, tool_result blocks
+  shown as `[tool_result]`
+- Assistant records: text blocks printed inline, tool_use shown as
+  `[tool: <name>]`, thinking blocks silently skipped
+- All other record types silently skipped
+- Errors if more than one file given with `--show`
+- Parse errors counted and reported in show summary
+- Refactored `show_transcript_to()` to accept `BufRead` + `Write`
+  for testability, returning `ShowStats` struct
+- Added non-empty thinking test data from vc-x1 session
+- Added `err-data/show-mixed.jsonl` with valid + invalid lines
+- 6 tests in main.rs: basic conversation, non-empty thinking,
+  mixed errors, all errors, empty input, separator placement

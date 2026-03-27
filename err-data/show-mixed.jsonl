@@ -1,0 +1,5 @@
+{"type":"user","isSidechain":false,"message":{"role":"user","content":"hello"},"uuid":"aaa","timestamp":"2026-01-01T00:00:00Z"}
+{not valid json at all
+{"type":"assistant","isSidechain":false,"message":{"model":"claude-opus-4-6","id":"msg_01","type":"message","role":"assistant","content":[{"type":"text","text":"Hi there!"}],"usage":{"input_tokens":10,"output_tokens":5}},"uuid":"bbb","timestamp":"2026-01-01T00:00:01Z"}
+{"type":"bogus","data":"unknown variant"}
+{"type":"user","isSidechain":false,"message":{"role":"user","content":"goodbye"},"uuid":"ccc","timestamp":"2026-01-01T00:00:02Z"}

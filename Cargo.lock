@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "ccs-viewer"
-version = "0.16.0-dev0"
+version = "0.16.0-dev1"
 dependencies = [
  "clap",
  "glob",
