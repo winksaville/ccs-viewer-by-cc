@@ -11,6 +11,7 @@ A markdown list of task to do in the near feature
 
 See [Foramt details](README.md#todo-format)
 
+ - Phase 1: CLI transcript mode — display user/assistant conversation [28]
  - Parallel file processing (rayon) and/or faster dir walking (jwalk/ignore)
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
@@ -77,3 +78,4 @@ Keep [a] here for on going testing:
 [25]: chores-01.md#improve-error-output-format-columnization-full-paths
 [26]: chores-01.md#label-and-indent--v--valid-like-the-others
 [27]: chores-01.md#try-simd-json-for-performance-abandoned
+[28]: chores-02.md#session-display-roadmap
