@@ -7,6 +7,10 @@ use clap::Parser;
 
 use ccs_viewer::types::{AgentMeta, AssistantContentBlock, Record, UserContent, UserContentBlock};
 
+mod timed;
+
+use crate::timed::timed;
+
 #[derive(Parser)]
 #[command(
     version,
@@ -330,260 +334,273 @@ fn show_transcript(path: &PathBuf) {
 }
 
 fn main() {
-    let cli = Cli::parse();
-    let files = resolve_files(&cli);
+    // Execution time printed when this function
+    timed!("main: total execution time");
+
+    timed!("main: parsing args", {
+        let cli = Cli::parse();
+    });
+    timed!("main: resolving files", {
+        let files = resolve_files(&cli);
+    });
 
     if files.is_empty() {
         eprintln!("No files to process");
         std::process::exit(1);
     }
 
-    if cli.show {
-        if files.len() > 1 {
-            eprintln!("--show requires a single file, got {}", files.len());
-            std::process::exit(1);
+    timed!("main: processing files", {
+        if cli.show {
+            if files.len() > 1 {
+                eprintln!("--show requires a single file, got {}", files.len());
+                std::process::exit(1);
+            }
+            show_transcript(&files[0]);
+            return;
         }
-        show_transcript(&files[0]);
-        return;
-    }
 
-    let mut total_records: usize = 0;
-    let mut total_errors: usize = 0;
-    let mut total_skipped: usize = 0;
-    let mut total_empty: usize = 0;
-    let mut skipped_files: Vec<String> = Vec::new();
-    let mut empty_files: Vec<String> = Vec::new();
-    let mut error_groups: HashMap<ErrorKey, ErrorGroup> = HashMap::new();
-    let mut valid_header_printed = false;
+        let mut total_records: usize = 0;
+        let mut total_errors: usize = 0;
+        let mut total_skipped: usize = 0;
+        let mut total_empty: usize = 0;
+        let mut skipped_files: Vec<String> = Vec::new();
+        let mut empty_files: Vec<String> = Vec::new();
+        let mut error_groups: HashMap<ErrorKey, ErrorGroup> = HashMap::new();
+        let mut valid_header_printed = false;
 
-    for (file_idx, path) in files.iter().enumerate() {
-        let file = File::open(path).unwrap_or_else(|e| {
-            eprintln!("Error opening {}: {e}", path.display());
-            std::process::exit(1);
-        });
+        for (file_idx, path) in files.iter().enumerate() {
+            let file = File::open(path).unwrap_or_else(|e| {
+                eprintln!("Error opening {}: {e}", path.display());
+                std::process::exit(1);
+            });
 
-        let filename = path
-            .file_name()
-            .map(|f| f.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.display().to_string());
+            let filename = path
+                .file_name()
+                .map(|f| f.to_string_lossy().into_owned())
+                .unwrap_or_else(|| path.display().to_string());
 
-        // Handle .meta.json files as single-object JSON (not JSONL).
-        if filename.ends_with(".meta.json") {
-            let metadata = file.metadata().ok();
-            if metadata.as_ref().is_some_and(|m| m.len() == 0) {
+            // Handle .meta.json files as single-object JSON (not JSONL).
+            if filename.ends_with(".meta.json") {
+                let metadata = file.metadata().ok();
+                if metadata.as_ref().is_some_and(|m| m.len() == 0) {
+                    total_empty += 1;
+                    if cli.zero {
+                        empty_files.push(path.display().to_string());
+                    }
+                    continue;
+                }
+                let result: Result<AgentMeta, _> = serde_json::from_reader(file);
+                match result {
+                    Ok(_meta) => {
+                        total_records += 1;
+                        if cli.valid {
+                            if !valid_header_printed {
+                                println!("Valid:");
+                                valid_header_printed = true;
+                            }
+                            println!("  {}", path.display());
+                            println!("    agent-meta (ok)");
+                        }
+                    }
+                    Err(e) => {
+                        total_errors += 1;
+                        let key = ErrorKey {
+                            message: format!("{e}"),
+                            record_type: "agent-meta".to_string(),
+                        };
+                        let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
+                            count: 0,
+                            file_count: 0,
+                            seen_files: Vec::new(),
+                            hits: Vec::new(),
+                        });
+                        group.count += 1;
+                        if !group.seen_files.contains(&file_idx) {
+                            group.seen_files.push(file_idx);
+                            group.file_count += 1;
+                            group.hits.push(ErrorHit {
+                                path: path.display().to_string(),
+                                line: 1,
+                            });
+                        }
+                        if cli.valid {
+                            if !valid_header_printed {
+                                println!("Valid:");
+                                valid_header_printed = true;
+                            }
+                            println!("  {}", path.display());
+                            println!("    agent-meta (error)");
+                        }
+                    }
+                }
+                continue;
+            }
+
+            let mut reader = BufReader::new(file);
+
+            // Check for empty files before the sniff test.
+            let mut first_line = String::new();
+            if reader.read_line(&mut first_line).unwrap_or(0) == 0 {
                 total_empty += 1;
                 if cli.zero {
                     empty_files.push(path.display().to_string());
                 }
                 continue;
             }
-            let result: Result<AgentMeta, _> = serde_json::from_reader(file);
-            match result {
-                Ok(_meta) => {
-                    total_records += 1;
-                    if cli.valid {
-                        if !valid_header_printed {
-                            println!("Valid:");
-                            valid_header_printed = true;
-                        }
-                        println!("  {}", path.display());
-                        println!("    agent-meta (ok)");
-                    }
+
+            // First-line sniff test: skip .jsonl files that don't look like
+            // Claude Code sessions. CCS files start with {"type": or {"parentUuid":.
+            let trimmed = first_line.trim();
+            if !trimmed.starts_with("{\"type\":") && !trimmed.starts_with("{\"parentUuid\":") {
+                total_skipped += 1;
+                if cli.skipped {
+                    skipped_files.push(path.display().to_string());
                 }
-                Err(e) => {
-                    total_errors += 1;
-                    let key = ErrorKey {
-                        message: format!("{e}"),
-                        record_type: "agent-meta".to_string(),
-                    };
-                    let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
-                        count: 0,
-                        file_count: 0,
-                        seen_files: Vec::new(),
-                        hits: Vec::new(),
-                    });
-                    group.count += 1;
-                    if !group.seen_files.contains(&file_idx) {
-                        group.seen_files.push(file_idx);
-                        group.file_count += 1;
-                        group.hits.push(ErrorHit {
-                            path: path.display().to_string(),
-                            line: 1,
-                        });
-                    }
-                    if cli.valid {
-                        if !valid_header_printed {
-                            println!("Valid:");
-                            valid_header_printed = true;
-                        }
-                        println!("  {}", path.display());
-                        println!("    agent-meta (error)");
-                    }
-                }
-            }
-            continue;
-        }
-
-        let mut reader = BufReader::new(file);
-
-        // Check for empty files before the sniff test.
-        let mut first_line = String::new();
-        if reader.read_line(&mut first_line).unwrap_or(0) == 0 {
-            total_empty += 1;
-            if cli.zero {
-                empty_files.push(path.display().to_string());
-            }
-            continue;
-        }
-
-        // First-line sniff test: skip .jsonl files that don't look like
-        // Claude Code sessions. CCS files start with {"type": or {"parentUuid":.
-        let trimmed = first_line.trim();
-        if !trimmed.starts_with("{\"type\":") && !trimmed.starts_with("{\"parentUuid\":") {
-            total_skipped += 1;
-            if cli.skipped {
-                skipped_files.push(path.display().to_string());
-            }
-            continue;
-        }
-
-        // Process lines starting from the first line we already read.
-        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
-        let mut file_errors: usize = 0;
-
-        // Process first line, then remaining lines.
-        let remaining_lines = reader.lines().map(|l| l.unwrap_or_default());
-        let all_lines = std::iter::once(first_line.trim_end().to_string()).chain(remaining_lines);
-
-        for (i, line) in all_lines.enumerate() {
-            if line.trim().is_empty() {
                 continue;
             }
-            match serde_json::from_str::<Record>(&line) {
-                Ok(record) => {
-                    *counts.entry(record.label()).or_insert(0) += 1;
-                }
-                Err(e) => {
-                    file_errors += 1;
-                    let record_type = serde_json::from_str::<serde_json::Value>(&line)
-                        .ok()
-                        .and_then(|v| v.get("type")?.as_str().map(String::from))
-                        .unwrap_or_else(|| "unknown".to_string());
 
-                    let key = ErrorKey {
-                        message: format!("{e}"),
-                        record_type,
-                    };
-                    let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
-                        count: 0,
-                        file_count: 0,
-                        seen_files: Vec::new(),
-                        hits: Vec::new(),
-                    });
-                    group.count += 1;
-                    if !group.seen_files.contains(&file_idx) {
-                        group.seen_files.push(file_idx);
-                        group.file_count += 1;
-                        group.hits.push(ErrorHit {
-                            path: path.display().to_string(),
-                            line: i + 1,
+            // Process lines starting from the first line we already read.
+            let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+            let mut file_errors: usize = 0;
+
+            // Process first line, then remaining lines.
+            let remaining_lines = reader.lines().map(|l| l.unwrap_or_default());
+            let all_lines =
+                std::iter::once(first_line.trim_end().to_string()).chain(remaining_lines);
+
+            for (i, line) in all_lines.enumerate() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                match serde_json::from_str::<Record>(&line) {
+                    Ok(record) => {
+                        *counts.entry(record.label()).or_insert(0) += 1;
+                    }
+                    Err(e) => {
+                        file_errors += 1;
+                        let record_type = serde_json::from_str::<serde_json::Value>(&line)
+                            .ok()
+                            .and_then(|v| v.get("type")?.as_str().map(String::from))
+                            .unwrap_or_else(|| "unknown".to_string());
+
+                        let key = ErrorKey {
+                            message: format!("{e}"),
+                            record_type,
+                        };
+                        let group = error_groups.entry(key).or_insert_with(|| ErrorGroup {
+                            count: 0,
+                            file_count: 0,
+                            seen_files: Vec::new(),
+                            hits: Vec::new(),
                         });
+                        group.count += 1;
+                        if !group.seen_files.contains(&file_idx) {
+                            group.seen_files.push(file_idx);
+                            group.file_count += 1;
+                            group.hits.push(ErrorHit {
+                                path: path.display().to_string(),
+                                line: i + 1,
+                            });
+                        }
                     }
                 }
             }
-        }
 
-        let file_total: usize = counts.values().sum();
-        total_records += file_total;
-        total_errors += file_errors;
+            let file_total: usize = counts.values().sum();
+            total_records += file_total;
+            total_errors += file_errors;
 
-        if cli.valid {
-            if !valid_header_printed {
-                println!("Valid:");
-                valid_header_printed = true;
-            }
-            let mut parts = vec![
-                format!("errors: {file_errors}"),
-                format!("records: {file_total}"),
-            ];
-            for (label, count) in &counts {
-                parts.push(format!("{label}: {count}"));
-            }
-            println!("  {}", path.display());
-            println!("    {}", parts.join(", "));
-        }
-    }
-
-    let file_count = files.len();
-    let processed = file_count - total_skipped - total_empty;
-
-    if valid_header_printed {
-        println!();
-    }
-
-    let show_errors = cli.errors || cli.error_summary;
-    if show_errors && !error_groups.is_empty() {
-        let mut groups: Vec<_> = error_groups.iter().collect();
-        groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
-
-        if cli.error_summary && cli.errors {
-            // -e -E combined: grouped summary with all paths nested
-            println!("Error summary:");
-            for (key, group) in &groups {
-                println!("  {}x {} in {}", group.count, key.message, key.record_type,);
-                for hit in &group.hits {
-                    println!("    {}:{}", hit.path, hit.line);
+            if cli.valid {
+                if !valid_header_printed {
+                    println!("Valid:");
+                    valid_header_printed = true;
                 }
+                let mut parts = vec![
+                    format!("errors: {file_errors}"),
+                    format!("records: {file_total}"),
+                ];
+                for (label, count) in &counts {
+                    parts.push(format!("{label}: {count}"));
+                }
+                println!("  {}", path.display());
+                println!("    {}", parts.join(", "));
             }
+        }
+    });
+
+    timed!("main: summarizing results", {
+        let file_count = files.len();
+        let processed = file_count - total_skipped - total_empty;
+
+        if valid_header_printed {
             println!();
-        } else if cli.error_summary {
-            // -E only: grouped summary, two lines per group
-            println!("Error summary:");
-            for (key, group) in &groups {
-                let first = &group.hits[0];
-                println!("  {}x {} in {}", group.count, key.message, key.record_type,);
-                println!(
-                    "    {} file(s), first: {}:{}",
-                    group.file_count, first.path, first.line,
-                );
+        }
+
+        let show_errors = cli.errors || cli.error_summary;
+        if show_errors && !error_groups.is_empty() {
+            let mut groups: Vec<_> = error_groups.iter().collect();
+            groups.sort_by(|a, b| b.1.count.cmp(&a.1.count));
+
+            if cli.error_summary && cli.errors {
+                // -e -E combined: grouped summary with all paths nested
+                println!("Error summary:");
+                for (key, group) in &groups {
+                    println!("  {}x {} in {}", group.count, key.message, key.record_type,);
+                    for hit in &group.hits {
+                        println!("    {}:{}", hit.path, hit.line);
+                    }
+                }
+                println!();
+            } else if cli.error_summary {
+                // -E only: grouped summary, two lines per group
+                println!("Error summary:");
+                for (key, group) in &groups {
+                    let first = &group.hits[0];
+                    println!("  {}x {} in {}", group.count, key.message, key.record_type,);
+                    println!(
+                        "    {} file(s), first: {}:{}",
+                        group.file_count, first.path, first.line,
+                    );
+                }
+                println!();
+            } else if cli.errors {
+                // -e only: flat list of all error file:line paths
+                println!("Errors:");
+                let mut all_hits: Vec<_> =
+                    error_groups.values().flat_map(|g| g.hits.iter()).collect();
+                all_hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
+                for hit in all_hits {
+                    println!("  {}:{}", hit.path, hit.line);
+                }
+                println!();
             }
-            println!();
-        } else if cli.errors {
-            // -e only: flat list of all error file:line paths
-            println!("Errors:");
-            let mut all_hits: Vec<_> = error_groups.values().flat_map(|g| g.hits.iter()).collect();
-            all_hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
-            for hit in all_hits {
-                println!("  {}:{}", hit.path, hit.line);
+        }
+
+        if cli.skipped && !skipped_files.is_empty() {
+            println!("Skipped:");
+            for f in &skipped_files {
+                println!("  {f}");
             }
             println!();
         }
-    }
 
-    if cli.skipped && !skipped_files.is_empty() {
-        println!("Skipped:");
-        for f in &skipped_files {
-            println!("  {f}");
+        if cli.zero && !empty_files.is_empty() {
+            println!("Zero-len:");
+            for f in &empty_files {
+                println!("  {f}");
+            }
+            println!();
         }
-        println!();
-    }
 
-    if cli.zero && !empty_files.is_empty() {
-        println!("Zero-len:");
-        for f in &empty_files {
-            println!("  {f}");
+        let total_files = processed + total_skipped + total_empty;
+        println!(
+            "Summary: {total_files} total files, {processed} valid files with {total_records} records, {total_empty} zero-len, {total_skipped} skipped, {total_errors} errors"
+        );
+
+        if cli.strict && total_errors > 0 {
+            std::process::exit(2);
         }
-        println!();
-    }
-
-    let total_files = processed + total_skipped + total_empty;
-    println!(
-        "Summary: {total_files} total files, {processed} valid files with {total_records} records, {total_empty} zero-len, {total_skipped} skipped, {total_errors} errors"
-    );
-
-    if cli.strict && total_errors > 0 {
-        std::process::exit(2);
-    }
+    });
 }
 
 #[cfg(test)]

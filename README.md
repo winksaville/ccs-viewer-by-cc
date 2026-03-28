@@ -84,6 +84,9 @@ ccs-viewer -r --strict .claude
 
 # Display a session transcript
 ccs-viewer --show path/to/session.jsonl
+
+# Timing output goes to stderr; redirect to capture it
+ccs-viewer -r . 2> timing.txt
 ```
 
 ### Example output

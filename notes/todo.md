@@ -45,6 +45,7 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Label and indent -v,--valid like the others 0.13.1 [26]
  - Add error test data and improve error output 0.14.0 [24],[25]
  - Try faster JSON parsing (json-steroids, simd-json) — abandoned, bottleneck is I/O not parsing [27]
+ - Add timed module for profiling 0.16.0-dev1.1 [29]
 
 Keep [a] here for on going testing:
  - Test 3 leading number signs and one # embedded [a]
@@ -79,3 +80,4 @@ Keep [a] here for on going testing:
 [26]: chores-01.md#label-and-indent--v--valid-like-the-others
 [27]: chores-01.md#try-simd-json-for-performance-abandoned
 [28]: chores-02.md#session-display-roadmap
+[29]: chores-02.md#add-timed-module-for-profiling-0160-dev11

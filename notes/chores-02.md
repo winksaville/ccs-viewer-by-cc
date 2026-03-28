@@ -185,3 +185,52 @@ Implemented the `--show` flag per the Phase 1 plan above.
 - Added `err-data/show-mixed.jsonl` with valid + invalid lines
 - 6 tests in main.rs: basic conversation, non-empty thinking,
   mixed errors, all errors, empty input, separator placement
+
+## Add timed module for profiling (0.16.0-dev1.1)
+
+Added `src/timed.rs` with a `Timed` struct and `timed!` macro for
+lightweight scope/block timing. Output goes to stderr so it doesn't
+pollute stdout program output (redirect with `2> file.txt`).
+
+### `timed!` macro — two forms
+
+Has single and dual parameter forms for flexible use. But one thing to
+remember; it prints at the **end of the scope** not at the location
+of the macro call. Someday we may make a variant that prints immediately
+and indents the text based on nesting level, but for now we'll keep it simple.
+
+**Single parameter** — drop guard for whole functions or scopes:
+```rust
+fn main() {
+    timed!("fn main");       // prints elapsed on drop at end of scope
+    // ...
+}
+```
+Also works in `{ }` blocks and loop bodies — the hidden `_timer`
+variable drops at end of enclosing scope.
+
+**Dual parameter** — block form for inline sections:
+```rust
+timed!("parsing args", {
+    let cli = Cli::parse();  // cli escapes into caller scope
+});
+```
+The `{ }` is a macro token delimiter, not a Rust block, so `let`
+bindings inside the body are visible after the macro.
+
+### Design decisions
+
+- **stderr only** — timing is diagnostic; stdout stays clean and
+  pipeable. Considered adding `println`/`ptimed` variants but decided
+  YAGNI.
+- **`silent` flag** — `.get()` and `.eprintln()` set `silent = true`
+  so `Drop` doesn't double-print.
+- **DRY chain** — `Drop` calls `eprintln()` which calls `get()`.
+  Single code path for output.
+- **Replaced `TimeIt`** — `Timed` subsumes the earlier `TimeIt`
+  struct (which had no `.get()` or `.eprintln()`).
+- **`cargo fmt` wins** — fmt forces double-indented multi-line macro
+  bodies. Single-line and outdented forms don't survive formatting.
+  Accepted fmt's style.
+- **No proc macros** — considered `#[timed]` attribute for functions
+  but a declarative macro covers both use cases without extra deps.
