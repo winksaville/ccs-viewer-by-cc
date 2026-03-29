@@ -3,6 +3,8 @@
 //! All output goes to stderr so stdout stays clean for program output.
 //! Use `2> file.txt` to capture timing separately.
 //!
+//! Output is **off by default**. Enable with `CCS_TIMING=1` env var.
+//!
 //! # Examples
 //!
 //! **Drop guard** — times the enclosing scope (function, block, loop body):
@@ -23,6 +25,13 @@
 //! // cli is visible here
 //! ```
 
+use std::sync::OnceLock;
+
+fn is_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("CCS_TIMING").is_ok_and(|v| v == "1"))
+}
+
 pub struct Timed {
     label: &'static str,
     start: std::time::Instant,
@@ -34,7 +43,7 @@ impl Timed {
         Self {
             label,
             start: std::time::Instant::now(),
-            silent: false,
+            silent: !is_enabled(),
         }
     }
 
@@ -44,6 +53,10 @@ impl Timed {
     }
 
     pub fn eprintln(&mut self) {
+        if !is_enabled() {
+            self.silent = true;
+            return;
+        }
         let elapsed = self.get();
         eprintln!("{} {:?}", self.label, elapsed);
     }

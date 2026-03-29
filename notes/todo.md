@@ -11,10 +11,11 @@ and reference links to more details.
 
 A markdown list of task to do in the near feature
 
-See [Foramt details](README.md#todo-format)
+See [Format details](README.md#todo-format)
  - Parallel file processing (rayon) and/or faster dir walking (jwalk/ignore)
  - Refactor common metadata fields into a shared SessionMetadata struct [4]
  - Have claude code design claude-code a session viewer [1]
+ - Extract `timed` module into its own crate (add CLI flag, compile-time feature)
 
 ## Done
 
@@ -45,7 +46,9 @@ and older `## Done` sections are moved to [done.md](done.md) to keep this file s
  - Label and indent -v,--valid like the others 0.13.1 [26]
  - Add error test data and improve error output 0.14.0 [24],[25]
  - Try faster JSON parsing (json-steroids, simd-json) — abandoned, bottleneck is I/O not parsing [27]
+ - Add session display roadmap 0.15.0 [31]
  - Add timed module for profiling 0.16.0-dev1.1 [29]
+ - Add CCS_TIMING env var toggle 0.16.0-dev1.2 [30]
 
 Keep [a] here for on going testing:
  - Test 3 leading number signs and one # embedded [a]
@@ -81,3 +84,5 @@ Keep [a] here for on going testing:
 [27]: chores-01.md#try-simd-json-for-performance-abandoned
 [28]: chores-02.md#session-display-roadmap
 [29]: chores-02.md#add-timed-module-for-profiling-0160-dev11
+[30]: chores-02.md#add-ccs_timing-env-var-toggle-0160-dev12
+[31]: chores-02.md#session-display-roadmap-0150

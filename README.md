@@ -85,11 +85,23 @@ ccs-viewer -r --strict .claude
 # Display a session transcript
 ccs-viewer --show path/to/session.jsonl
 
-# Timing output goes to stderr; redirect to capture it
-ccs-viewer -r . 2> timing.txt
+# Enable timing output (off by default, goes to stderr)
+CCS_TIMING=1 ccs-viewer -r . 2> timing.txt
 ```
 
 ### Example output
+
+Timing with `CCS_TIMING=1` (timing goes to stderr, summary to stdout):
+
+```
+$ CCS_TIMING=1 ccs-viewer data/ccs-viewer-tests.jsonl
+main: parsing args 51.717µs
+main: resolving files 38.132µs
+main: processing files 136.106µs
+Summary: 1 total files, 1 valid files with 20 records, 0 zero-len, 0 skipped, 0 errors
+main: summarizing results 2.274µs
+main: total execution time 262.833µs
+```
 
 ```
 $ ccs-viewer -E -r .claude

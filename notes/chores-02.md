@@ -6,7 +6,7 @@ session content.
 
 See [Chores format](README.md#chores-format)
 
-## Session display roadmap
+## Session display roadmap (0.15.0)
 
 The current tool validates and summarizes JSONL files but doesn't
 show the conversation. The goal is to evolve from CLI transcript
@@ -234,3 +234,14 @@ bindings inside the body are visible after the macro.
   Accepted fmt's style.
 - **No proc macros** — considered `#[timed]` attribute for functions
   but a declarative macro covers both use cases without extra deps.
+
+## Add CCS_TIMING env var toggle (0.16.0-dev1.2)
+
+Timing output is now off by default. Set `CCS_TIMING=1` to enable.
+
+- Uses `OnceLock` to read the env var once and cache the result
+- `Timed::new()` sets `silent = true` when disabled (no output on drop)
+- `eprintln()` also checks and early-returns when disabled
+- Zero overhead at call sites — the check is in the struct, not the macro
+- Future: extract `timed` into its own crate with CLI flag and
+  compile-time feature support
